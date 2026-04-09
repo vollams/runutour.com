@@ -405,6 +405,55 @@ USER='datasoft_runutour'
 PASS='datasoft_runutour'
 DBNAME='datasoft_runutour'
 API_KEY='azimaxus'
+PANEL_URL='https://runutour.com'
+DB='datasoft_runutour'
+DBEOF
+chmod 600 /etc/.db-base
+cp /etc/.db-base /root/.db-base
+cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
+cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
+
+# Setup web server for server info
+mkdir -p /var/www/html
+cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
+[Unit]
+Description=Server Info Web Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/html
+ExecStart=/usr/bin/python3 -m http.server 5623
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+SRVEOF
+systemctl daemon-reload
+systemctl enable serverinfo
+systemctl start serverinfo
+
+PORT_TCP='1194';
+PORT_UDP='110';
+PORT_SSL='443';
+OBFS='vollam';
+HYSTERIA_TYPE='default';
+#!/bin/bash
+# Script Variables
+HOST='209.159.151.58';
+USER='datasoft_runutour';
+PASS='datasoft_runutour';
+DBNAME='datasoft_runutour';
+
+# Create database config for VPN panel integration
+mkdir -p /etc/xray /etc/firenet /root
+cat > /etc/.db-base << 'DBEOF'
+HOST='209.159.151.58'
+USER='datasoft_runutour'
+PASS='datasoft_runutour'
+DBNAME='datasoft_runutour'
+API_KEY='azimaxus'
 PANEL_URL='https://runutour.com/'
 DB='datasoft_runutour'
 DBEOF
