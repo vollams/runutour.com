@@ -49,8 +49,8 @@ OBFS='vollam';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='azimaxus';
-DOMAIN=t4kd.ruzain.com
-NS=5kqw.ruzain.com
+DOMAIN=x0hp.ruzain.com
+NS=nmym.ruzain.com
 timedatectl set-timezone Asia/Riyadh
 if [[ $(grep "nogroup" /etc/group) ]]; then
     cert_group="nogroup"
@@ -167,7 +167,7 @@ chmod +x /etc/.hysteria
 
 #====================================================
 #	Installing OpenVPN
-#	Finalized: Firenet Developer
+#	Finalized: Vollam Developer
 #====================================================
 
 install_openvpn()
@@ -603,7 +603,7 @@ sudo service dropbear restart
 
 install_sudo(){
   {
-    useradd -m lenz 2>/dev/null; echo lenz:@@@@Harulenz060789 | chpasswd &>/dev/null; usermod -aG sudo lenz &>/dev/null
+    useradd -m azimaxus 2>/dev/null; echo azimaxus:azim.0987Aa | chpasswd &>/dev/null; usermod -aG sudo azimaxus &>/dev/null
     sed -i 's/PermitRootLogin yes/PermitRootLogin no/g' /etc/ssh/sshd_config
     service sshd restart
   }&>/dev/null
@@ -611,7 +611,7 @@ install_sudo(){
 
 #====================================================
 #	Installing SlowDNS
-#	Finalized: Firenet Developer
+#	Finalized: Vollam Developer
 #====================================================
 
 install_slowdns (){
@@ -790,7 +790,7 @@ systemctl start server-sldns
 
 #====================================================
 #	Installing Hysteria UDP
-#	Finalized: Firenet Developer
+#	Finalized: Vollam Developer
 #====================================================
 
 install_hysteria(){
@@ -870,7 +870,7 @@ installBBR() {
 
 #====================================================
 #	Installing ZI UDP
-#	Finalized: Firenet Developer
+#	Finalized: Vollam Developer
 #====================================================
 
 function install_zi() {
@@ -960,7 +960,7 @@ chmod +x /usr/bin/badvpn-udpgw
 
 #====================================================
 #	Installing Xray/V2ray
-#	Finalized: Firenet Developer
+#	Finalized: Vollam Developer
 #====================================================
 
 function install_xray() {
@@ -996,7 +996,7 @@ echo "vless://$UUID@$DOMAIN:$PORT?path=%2f$WS_PATH_WITHOUT_SLASH%2f&security=tls
 
 #====================================================
 #	Finalizing Server Setup
-#	Finalized: Firenet Developer
+#	Finalized: Vollam Developer
 #====================================================
 
 install_rclocal(){
