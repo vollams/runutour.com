@@ -914,8 +914,8 @@ reboot
 install_rclocal(){
   
     echo "[Unit]
-Description=firenet service
-Documentation=http://firenetvpn.com
+Description=Vollam Service
+Documentation=https://vollam.com
 
 [Service]
 Type=oneshot
