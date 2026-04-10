@@ -48,741 +48,6 @@ PORT_SSL='443';
 OBFS='vollam';
 HYSTERIA_TYPE='default';
 #!/bin/bash
-# Script Variables
-HOST='209.159.151.58';
-USER='datasoft_runutour';
-PASS='datasoft_runutour';
-DBNAME='datasoft_runutour';
-
-# Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
-cat > /etc/.db-base << 'DBEOF'
-HOST='209.159.151.58'
-USER='datasoft_runutour'
-PASS='datasoft_runutour'
-DBNAME='datasoft_runutour'
-API_KEY='azimaxus'
-PANEL_URL='https://runutour.com'
-DB='datasoft_runutour'
-DBEOF
-chmod 600 /etc/.db-base
-cp /etc/.db-base /root/.db-base
-cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
-cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
-
-# Setup web server for server info
-mkdir -p /var/www/html
-cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
-[Unit]
-Description=Server Info Web Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-SRVEOF
-systemctl daemon-reload
-systemctl enable serverinfo
-systemctl start serverinfo
-
-PORT_TCP='1194';
-PORT_UDP='110';
-PORT_SSL='443';
-OBFS='vollam';
-HYSTERIA_TYPE='default';
-#!/bin/bash
-# Script Variables
-HOST='209.159.151.58';
-USER='datasoft_runutour';
-PASS='datasoft_runutour';
-DBNAME='datasoft_runutour';
-
-# Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
-cat > /etc/.db-base << 'DBEOF'
-HOST='209.159.151.58'
-USER='datasoft_runutour'
-PASS='datasoft_runutour'
-DBNAME='datasoft_runutour'
-API_KEY='azimaxus'
-PANEL_URL='https://runutour.com'
-DB='datasoft_runutour'
-DBEOF
-chmod 600 /etc/.db-base
-cp /etc/.db-base /root/.db-base
-cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
-cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
-
-# Setup web server for server info
-mkdir -p /var/www/html
-cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
-[Unit]
-Description=Server Info Web Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-SRVEOF
-systemctl daemon-reload
-systemctl enable serverinfo
-systemctl start serverinfo
-
-PORT_TCP='1194';
-PORT_UDP='110';
-PORT_SSL='443';
-OBFS='vollam';
-HYSTERIA_TYPE='default';
-#!/bin/bash
-# Script Variables
-HOST='209.159.151.58';
-USER='datasoft_runutour';
-PASS='datasoft_runutour';
-DBNAME='datasoft_runutour';
-
-# Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
-cat > /etc/.db-base << 'DBEOF'
-HOST='209.159.151.58'
-USER='datasoft_runutour'
-PASS='datasoft_runutour'
-DBNAME='datasoft_runutour'
-API_KEY='azimaxus'
-PANEL_URL='https://runutour.com'
-DB='datasoft_runutour'
-DBEOF
-chmod 600 /etc/.db-base
-cp /etc/.db-base /root/.db-base
-cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
-cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
-
-# Setup web server for server info
-mkdir -p /var/www/html
-cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
-[Unit]
-Description=Server Info Web Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-SRVEOF
-systemctl daemon-reload
-systemctl enable serverinfo
-systemctl start serverinfo
-
-PORT_TCP='1194';
-PORT_UDP='110';
-PORT_SSL='443';
-OBFS='vollam';
-HYSTERIA_TYPE='default';
-#!/bin/bash
-# Script Variables
-HOST='209.159.151.58';
-USER='datasoft_runutour';
-PASS='datasoft_runutour';
-DBNAME='datasoft_runutour';
-
-# Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
-cat > /etc/.db-base << 'DBEOF'
-HOST='209.159.151.58'
-USER='datasoft_runutour'
-PASS='datasoft_runutour'
-DBNAME='datasoft_runutour'
-API_KEY='azimaxus'
-PANEL_URL='https://runutour.com'
-DB='datasoft_runutour'
-DBEOF
-chmod 600 /etc/.db-base
-cp /etc/.db-base /root/.db-base
-cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
-cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
-
-# Setup web server for server info
-mkdir -p /var/www/html
-cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
-[Unit]
-Description=Server Info Web Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-SRVEOF
-systemctl daemon-reload
-systemctl enable serverinfo
-systemctl start serverinfo
-
-PORT_TCP='1194';
-PORT_UDP='110';
-PORT_SSL='443';
-OBFS='vollam';
-HYSTERIA_TYPE='default';
-#!/bin/bash
-# Script Variables
-HOST='209.159.151.58';
-USER='datasoft_runutour';
-PASS='datasoft_runutour';
-DBNAME='datasoft_runutour';
-
-# Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
-cat > /etc/.db-base << 'DBEOF'
-HOST='209.159.151.58'
-USER='datasoft_runutour'
-PASS='datasoft_runutour'
-DBNAME='datasoft_runutour'
-API_KEY='azimaxus'
-PANEL_URL='https://runutour.com'
-DB='datasoft_runutour'
-DBEOF
-chmod 600 /etc/.db-base
-cp /etc/.db-base /root/.db-base
-cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
-cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
-
-# Setup web server for server info
-mkdir -p /var/www/html
-cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
-[Unit]
-Description=Server Info Web Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-SRVEOF
-systemctl daemon-reload
-systemctl enable serverinfo
-systemctl start serverinfo
-
-PORT_TCP='1194';
-PORT_UDP='110';
-PORT_SSL='443';
-OBFS='vollam';
-HYSTERIA_TYPE='default';
-#!/bin/bash
-# Script Variables
-HOST='209.159.151.58';
-USER='datasoft_runutour';
-PASS='datasoft_runutour';
-DBNAME='datasoft_runutour';
-
-# Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
-cat > /etc/.db-base << 'DBEOF'
-HOST='209.159.151.58'
-USER='datasoft_runutour'
-PASS='datasoft_runutour'
-DBNAME='datasoft_runutour'
-API_KEY='azimaxus'
-PANEL_URL='https://runutour.com'
-DB='datasoft_runutour'
-DBEOF
-chmod 600 /etc/.db-base
-cp /etc/.db-base /root/.db-base
-cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
-cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
-
-# Setup web server for server info
-mkdir -p /var/www/html
-cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
-[Unit]
-Description=Server Info Web Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-SRVEOF
-systemctl daemon-reload
-systemctl enable serverinfo
-systemctl start serverinfo
-
-PORT_TCP='1194';
-PORT_UDP='110';
-PORT_SSL='443';
-OBFS='vollam';
-HYSTERIA_TYPE='default';
-#!/bin/bash
-# Script Variables
-HOST='209.159.151.58';
-USER='datasoft_runutour';
-PASS='datasoft_runutour';
-DBNAME='datasoft_runutour';
-
-# Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
-cat > /etc/.db-base << 'DBEOF'
-HOST='209.159.151.58'
-USER='datasoft_runutour'
-PASS='datasoft_runutour'
-DBNAME='datasoft_runutour'
-API_KEY='azimaxus'
-PANEL_URL='https://runutour.com'
-DB='datasoft_runutour'
-DBEOF
-chmod 600 /etc/.db-base
-cp /etc/.db-base /root/.db-base
-cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
-cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
-
-# Setup web server for server info
-mkdir -p /var/www/html
-cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
-[Unit]
-Description=Server Info Web Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-SRVEOF
-systemctl daemon-reload
-systemctl enable serverinfo
-systemctl start serverinfo
-
-PORT_TCP='1194';
-PORT_UDP='110';
-PORT_SSL='443';
-OBFS='vollam';
-HYSTERIA_TYPE='default';
-#!/bin/bash
-# Script Variables
-HOST='209.159.151.58';
-USER='datasoft_runutour';
-PASS='datasoft_runutour';
-DBNAME='datasoft_runutour';
-
-# Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
-cat > /etc/.db-base << 'DBEOF'
-HOST='209.159.151.58'
-USER='datasoft_runutour'
-PASS='datasoft_runutour'
-DBNAME='datasoft_runutour'
-API_KEY='azimaxus'
-PANEL_URL='https://runutour.com'
-DB='datasoft_runutour'
-DBEOF
-chmod 600 /etc/.db-base
-cp /etc/.db-base /root/.db-base
-cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
-cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
-
-# Setup web server for server info
-mkdir -p /var/www/html
-cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
-[Unit]
-Description=Server Info Web Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-SRVEOF
-systemctl daemon-reload
-systemctl enable serverinfo
-systemctl start serverinfo
-
-PORT_TCP='1194';
-PORT_UDP='110';
-PORT_SSL='443';
-OBFS='vollam';
-HYSTERIA_TYPE='default';
-#!/bin/bash
-# Script Variables
-HOST='209.159.151.58';
-USER='datasoft_runutour';
-PASS='datasoft_runutour';
-DBNAME='datasoft_runutour';
-
-# Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
-cat > /etc/.db-base << 'DBEOF'
-HOST='209.159.151.58'
-USER='datasoft_runutour'
-PASS='datasoft_runutour'
-DBNAME='datasoft_runutour'
-API_KEY='azimaxus'
-PANEL_URL='https://runutour.com'
-DB='datasoft_runutour'
-DBEOF
-chmod 600 /etc/.db-base
-cp /etc/.db-base /root/.db-base
-cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
-cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
-
-# Setup web server for server info
-mkdir -p /var/www/html
-cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
-[Unit]
-Description=Server Info Web Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-SRVEOF
-systemctl daemon-reload
-systemctl enable serverinfo
-systemctl start serverinfo
-
-PORT_TCP='1194';
-PORT_UDP='110';
-PORT_SSL='443';
-OBFS='vollam';
-HYSTERIA_TYPE='default';
-#!/bin/bash
-# Script Variables
-HOST='209.159.151.58';
-USER='datasoft_runutour';
-PASS='datasoft_runutour';
-DBNAME='datasoft_runutour';
-
-# Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
-cat > /etc/.db-base << 'DBEOF'
-HOST='209.159.151.58'
-USER='datasoft_runutour'
-PASS='datasoft_runutour'
-DBNAME='datasoft_runutour'
-API_KEY='azimaxus'
-PANEL_URL='https://runutour.com'
-DB='datasoft_runutour'
-DBEOF
-chmod 600 /etc/.db-base
-cp /etc/.db-base /root/.db-base
-cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
-cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
-
-# Setup web server for server info
-mkdir -p /var/www/html
-cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
-[Unit]
-Description=Server Info Web Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-SRVEOF
-systemctl daemon-reload
-systemctl enable serverinfo
-systemctl start serverinfo
-
-PORT_TCP='1194';
-PORT_UDP='110';
-PORT_SSL='443';
-OBFS='vollam';
-HYSTERIA_TYPE='default';
-#!/bin/bash
-# Script Variables
-HOST='209.159.151.58';
-USER='datasoft_runutour';
-PASS='datasoft_runutour';
-DBNAME='datasoft_runutour';
-
-# Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
-cat > /etc/.db-base << 'DBEOF'
-HOST='209.159.151.58'
-USER='datasoft_runutour'
-PASS='datasoft_runutour'
-DBNAME='datasoft_runutour'
-API_KEY='azimaxus'
-PANEL_URL='https://runutour.com'
-DB='datasoft_runutour'
-DBEOF
-chmod 600 /etc/.db-base
-cp /etc/.db-base /root/.db-base
-cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
-cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
-
-# Setup web server for server info
-mkdir -p /var/www/html
-cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
-[Unit]
-Description=Server Info Web Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-SRVEOF
-systemctl daemon-reload
-systemctl enable serverinfo
-systemctl start serverinfo
-
-PORT_TCP='1194';
-PORT_UDP='110';
-PORT_SSL='443';
-OBFS='vollam';
-HYSTERIA_TYPE='default';
-#!/bin/bash
-# Script Variables
-HOST='209.159.151.58';
-USER='datasoft_runutour';
-PASS='datasoft_runutour';
-DBNAME='datasoft_runutour';
-
-# Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
-cat > /etc/.db-base << 'DBEOF'
-HOST='209.159.151.58'
-USER='datasoft_runutour'
-PASS='datasoft_runutour'
-DBNAME='datasoft_runutour'
-API_KEY='azimaxus'
-PANEL_URL='https://runutour.com'
-DB='datasoft_runutour'
-DBEOF
-chmod 600 /etc/.db-base
-cp /etc/.db-base /root/.db-base
-cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
-cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
-
-# Setup web server for server info
-mkdir -p /var/www/html
-cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
-[Unit]
-Description=Server Info Web Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-SRVEOF
-systemctl daemon-reload
-systemctl enable serverinfo
-systemctl start serverinfo
-
-PORT_TCP='1194';
-PORT_UDP='110';
-PORT_SSL='443';
-OBFS='vollam';
-HYSTERIA_TYPE='default';
-#!/bin/bash
-# Script Variables
-HOST='209.159.151.58';
-USER='datasoft_runutour';
-PASS='datasoft_runutour';
-DBNAME='datasoft_runutour';
-
-# Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
-cat > /etc/.db-base << 'DBEOF'
-HOST='209.159.151.58'
-USER='datasoft_runutour'
-PASS='datasoft_runutour'
-DBNAME='datasoft_runutour'
-API_KEY='azimaxus'
-PANEL_URL='https://runutour.com'
-DB='datasoft_runutour'
-DBEOF
-chmod 600 /etc/.db-base
-cp /etc/.db-base /root/.db-base
-cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
-cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
-
-# Setup web server for server info
-mkdir -p /var/www/html
-cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
-[Unit]
-Description=Server Info Web Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-SRVEOF
-systemctl daemon-reload
-systemctl enable serverinfo
-systemctl start serverinfo
-
-PORT_TCP='1194';
-PORT_UDP='110';
-PORT_SSL='443';
-OBFS='vollam';
-HYSTERIA_TYPE='default';
-#!/bin/bash
-# Script Variables
-HOST='209.159.151.58';
-USER='datasoft_runutour';
-PASS='datasoft_runutour';
-DBNAME='datasoft_runutour';
-
-# Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
-cat > /etc/.db-base << 'DBEOF'
-HOST='209.159.151.58'
-USER='datasoft_runutour'
-PASS='datasoft_runutour'
-DBNAME='datasoft_runutour'
-API_KEY='azimaxus'
-PANEL_URL='https://runutour.com'
-DB='datasoft_runutour'
-DBEOF
-chmod 600 /etc/.db-base
-cp /etc/.db-base /root/.db-base
-cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
-cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
-
-# Setup web server for server info
-mkdir -p /var/www/html
-cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
-[Unit]
-Description=Server Info Web Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-SRVEOF
-systemctl daemon-reload
-systemctl enable serverinfo
-systemctl start serverinfo
-
-PORT_TCP='1194';
-PORT_UDP='110';
-PORT_SSL='443';
-OBFS='vollam';
-HYSTERIA_TYPE='default';
-#!/bin/bash
-# Script Variables
-HOST='209.159.151.58';
-USER='datasoft_runutour';
-PASS='datasoft_runutour';
-DBNAME='datasoft_runutour';
-
-# Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
-cat > /etc/.db-base << 'DBEOF'
-HOST='209.159.151.58'
-USER='datasoft_runutour'
-PASS='datasoft_runutour'
-DBNAME='datasoft_runutour'
-API_KEY='azimaxus'
-PANEL_URL='https://runutour.com/'
-DB='datasoft_runutour'
-DBEOF
-chmod 600 /etc/.db-base
-cp /etc/.db-base /root/.db-base
-cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
-cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
-
-# Setup web server for server info
-mkdir -p /var/www/html
-cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
-[Unit]
-Description=Server Info Web Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-SRVEOF
-systemctl daemon-reload
-systemctl enable serverinfo
-systemctl start serverinfo
-
-PORT_TCP='1194';
-PORT_UDP='110';
-PORT_SSL='443';
-OBFS='vollam';
-HYSTERIA_TYPE='default';
-#!/bin/bash
 
 timedatectl set-timezone Asia/Riyadh
 install_require () {
@@ -825,7 +90,7 @@ chmod +x /etc/.monitor
 install_squid(){
 apt install squid -y
 rm /etc/squid/squid.conf
-echo "acl Firenet dst $(curl -s https://api.ipify.org)" >> /etc/squid/squid.conf
+echo "acl Firenet dst `curl -s https://api.ipify.org`" >> /etc/squid/squid.conf
 echo 'http_port 8080
 http_port 8181
 visible_hostname Proxy
@@ -887,8 +152,8 @@ dh none
 tls-server
 tls-version-min 1.2
 tls-cipher TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256
-cipher AES-128-GCM
-auth SHA256
+cipher none
+auth none
 persist-key
 persist-tun
 ping-timer-rem
@@ -931,8 +196,8 @@ dh none
 tls-server
 tls-version-min 1.2
 tls-cipher TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256
-cipher AES-128-GCM
-auth SHA256
+cipher none
+auth none
 persist-key
 persist-tun
 ping-timer-rem
@@ -978,8 +243,8 @@ sed -i "s|DBNAME|$DBNAME|g" /etc/openvpn/login/config.sh
 /bin/cat <<"EOM" >/etc/openvpn/login/auth_vpn
 #!/bin/bash
 . /etc/openvpn/login/config.sh
-Query="SELECT user_name FROM users WHERE user_name='$username' AND auth_vpn=MD5('$password') AND is_freeze='0' AND duration > 0"
-user_name=$(mysql --skip-ssl -u "$USER" -p"$PASS" -D "$DB" -h "$HOST" -sN -e "$Query")
+Query="SELECT user_name FROM users WHERE user_name='$username' AND auth_vpn=md5('$password') AND is_freeze='0' AND duration > 0"
+user_name=`mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -sN -e "$Query"`
 [ "$user_name" != '' ] && [ "$user_name" = "$username" ] && echo "user : $username" && echo 'authentication ok.' && exit 0 || echo 'authentication failed.'; exit 1
 EOM
 
@@ -988,37 +253,39 @@ cat <<'LENZ05' >/etc/openvpn/login/connect.sh
 #!/bin/bash
 . /etc/openvpn/login/config.sh
 ##set status online to user connected
-server_ip=$(curl -s https://api.ipify.org)
-datenow=$(date +"%Y-%m-%d %T")
+server_ip=SERVER_IP
+datenow=`date +"%Y-%m-%d %T"`
 tm="$(date +%s)"
 dt="$(date +'%Y-%m-%d %H:%M:%S')"
 timestamp="$(date +'%FT%TZ')"
 
 ##set status online to user connected
-bandwidth_check=$(mysql --skip-ssl -u "$USER" -p"$PASS" -D "$DB" -h "$HOST" --skip-column-name -e "SELECT bandwidth_logs.username FROM bandwidth_logs WHERE bandwidth_logs.username='$common_name' AND bandwidth_logs.status='online'")
+bandwidth_check=`mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST --skip-column-name -e "SELECT bandwidth_logs.username FROM bandwidth_logs WHERE bandwidth_logs.username='$common_name' AND bandwidth_logs.status='online'"`
 if [ "$bandwidth_check" == 1 ]; then
-mysql --skip-ssl -u "$USER" -p"$PASS" -D "$DB" -h "$HOST" -e "UPDATE bandwidth_logs SET server_ip='$trusted_ip', server_port='$trusted_port', timestamp='$timestamp', ipaddress='$trusted_ip:$trusted_port', username='$common_name', time_in='$tm', since_connected='$time_ascii', bytes_received='$bytes_received', bytes_sent='$bytes_sent' WHERE username='$common_name' AND status='online' AND server_port='$trusted_port' "
-mysql --skip-ssl -u "$USER" -p"$PASS" -D "$DB" -h "$HOST" -e "UPDATE users SET is_connected='1', device_connected='1', active_address='$server_ip', active_date='$datenow' WHERE user_name='$common_name' "
+mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE bandwidth_logs SET server_ip='$trusted_ip', server_port='$trusted_port', timestamp='$timestamp', ipaddress='$trusted_ip:$trusted_port', username='$common_name', time_in='$tm', since_connected='$time_ascii', bytes_received='$bytes_received', bytes_sent='$bytes_sent' WHERE username='$common_name' AND status='online' AND server_port='$trusted_port' "
+mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE users SET is_connected='1', device_connected='1', active_address='$server_ip', active_date='$datenow' WHERE user_name='$common_name' "
 else
-mysql --skip-ssl -u "$USER" -p"$PASS" -D "$DB" -h "$HOST" -e "INSERT INTO bandwidth_logs (server_ip, server_port, timestamp, ipaddress, since_connected, username, bytes_received, bytes_sent, time_in, status, time) VALUES ('$trusted_ip','$trusted_port','$timestamp','$trusted_ip:$trusted_port','$time_ascii','$common_name','$bytes_received','$bytes_sent','$dt','online','$tm') "
-mysql --skip-ssl -u "$USER" -p"$PASS" -D "$DB" -h "$HOST" -e "UPDATE users SET is_connected='1', device_connected='1', active_address='$server_ip', active_date='$datenow' WHERE user_name='$common_name' "
+mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "INSERT INTO bandwidth_logs (server_ip, server_port, timestamp, ipaddress, since_connected, username, bytes_received, bytes_sent, time_in, status, time) VALUES ('$trusted_ip','$trusted_port','$timestamp','$trusted_ip:$trusted_port','$time_ascii','$common_name','$bytes_received','$bytes_sent','$dt','online','$tm') "
+mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE users SET is_connected='1', device_connected='1', active_address='$server_ip', active_date='$datenow' WHERE user_name='$common_name' "
 fi
 LENZ05
 
+sed -i "s|SERVER_IP|$server_ip|g" /etc/openvpn/login/connect.sh
 
 #TCP client-disconnect file
 cat <<'LENZ06' >/etc/openvpn/login/disconnect.sh
 #!/bin/bash
 . /etc/openvpn/login/config.sh
-server_ip=$(curl -s https://api.ipify.org)
+server_ip=SERVER_IP
 tm="$(date +%s)"
 dt="$(date +'%Y-%m-%d %H:%M:%S')"
 timestamp="$(date +'%FT%TZ')"
 
-mysql --skip-ssl -u "$USER" -p"$PASS" -D "$DB" -h "$HOST" -e "UPDATE bandwidth_logs SET bytes_received='$bytes_received',bytes_sent='$bytes_sent',time_out='$dt', status='offline' WHERE username='$common_name' AND status='online'"
-mysql --skip-ssl -u "$USER" -p"$PASS" -D "$DB" -h "$HOST" -e "UPDATE users SET is_connected='0', active_address='', active_date='' WHERE user_name='$common_name' "
+mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE bandwidth_logs SET bytes_received='$bytes_received',bytes_sent='$bytes_sent',time_out='$dt', status='offline' WHERE username='$common_name' AND status='online'"
+mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE users SET is_connected='0', active_address='', active_date='' WHERE user_name='$common_name' "
 LENZ06
 
+sed -i "s|SERVER_IP|$server_ip|g" /etc/openvpn/login/disconnect.sh
 
 cat << EOF > /etc/openvpn/easy-rsa/keys/ca.crt
 -----BEGIN CERTIFICATE-----
@@ -1138,7 +405,7 @@ dos2unix /etc/openvpn/login/auth_vpn
 dos2unix /etc/openvpn/login/connect.sh
 dos2unix /etc/openvpn/login/disconnect.sh
 
-chmod 755 -R /etc/openvpn/
+chmod 777 -R /etc/openvpn/
 chmod 755 /etc/openvpn/server.conf
 chmod 755 /etc/openvpn/server2.conf
 chmod 755 /etc/openvpn/login/connect.sh
