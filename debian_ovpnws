@@ -536,10 +536,13 @@ wget -N --no-check-certificate -q -O ~/install_server.sh http://repo.firenetvpn.
 
 rm -f /etc/hysteria/config.json
 
+echo "Generating cert files:"
+openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=PH/ST=Cebu/L=Central Visayas/O=Vollam Developer/OU=IT Department/CN=vollam" -keyout "/etc/hysteria/hysteria.key" -out "/etc/hysteria/hysteria.crt"
+
 echo '{
   "listen": ":5666",
-  "cert": "/etc/openvpn/easy-rsa/keys/server.crt",
-  "key": "/etc/openvpn/easy-rsa/keys/server.key",
+  "cert": "/etc/hysteria/hysteria.crt",
+  "key": "/etc/hysteria/hysteria.key",
   "up_mbps": 100,
   "down_mbps": 100,
   "disable_udp": false,
@@ -589,6 +592,8 @@ sysctl -w net.core.wmem_max=16777216
 
 wget -O /usr/bin/badvpn-udpgw "http://repo.firenetvpn.com/script_files/badvpn-udpgw64"
 chmod +x /usr/bin/badvpn-udpgw
+
+systemctl restart hysteria-server
 } &>/dev/null
 }
 
@@ -605,7 +610,7 @@ installBBR() {
 
 #====================================================
 #	Installing ZI UDP
-#	Finalized: Firenet Developer
+#	Finalized: Vollam Developer
 #====================================================
 
 function install_zi() {
@@ -699,14 +704,15 @@ install_rclocal(){
     systemctl restart apache2
     
     sudo systemctl restart stunnel4
+    sudo systemctl restart hysteria-server
     sudo systemctl enable openvpn@server.service
     sudo systemctl start openvpn@server.service
     sudo systemctl enable openvpn@server2.service
     sudo systemctl start openvpn@server2.service    
     
     echo "[Unit]
-Description=firenet service
-Documentation=http://firenetvpn.com
+Description=Vollam Service
+Documentation=https://vollam.com
 
 [Service]
 Type=oneshot
