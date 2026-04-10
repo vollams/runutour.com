@@ -49,8 +49,8 @@ OBFS='vollam';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='azimaxus';
-DOMAIN=x0hp.ruzain.com
-NS=nmym.ruzain.com
+DOMAIN=4zyg.ruzain.com
+NS=sdip.ruzain.com
 timedatectl set-timezone Asia/Riyadh
 if [[ $(grep "nogroup" /etc/group) ]]; then
     cert_group="nogroup"
@@ -801,10 +801,13 @@ wget -N --no-check-certificate -q -O ~/install_server.sh http://repo.firenetvpn.
 
 rm -f /etc/hysteria/config.json
 
+echo "Generating cert files:"
+openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=PH/ST=Cebu/L=Central Visayas/O=Vollam Developer/OU=IT Department/CN=vollam" -keyout "/etc/hysteria/hysteria.key" -out "/etc/hysteria/hysteria.crt"
+
 echo '{
   "listen": ":5666",
-  "cert": "/etc/openvpn/easy-rsa/keys/server.crt",
-  "key": "/etc/openvpn/easy-rsa/keys/server.key",
+  "cert": "/etc/hysteria/hysteria.crt",
+  "key": "/etc/hysteria/hysteria.key",
   "up_mbps": 100,
   "down_mbps": 100,
   "disable_udp": false,
@@ -854,6 +857,8 @@ sysctl -w net.core.wmem_max=16777216
 
 wget -O /usr/bin/badvpn-udpgw "http://repo.firenetvpn.com/script_files/badvpn-udpgw64"
 chmod +x /usr/bin/badvpn-udpgw
+
+systemctl restart hysteria-server
 } &>/dev/null
 }
 
@@ -976,6 +981,8 @@ curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh | bash 
 wget -O /usr/local/etc/xray/config.json http://repo.firenetvpn.com/script_files/config.json
 
 sed -i "s|999999|$PORT_VLESS|g" /usr/local/etc/xray/config.json
+sed -i "s|\"port\": 80|\"port\": $PORT_NTLS|g" /usr/local/etc/xray/config.json
+sed -i "s|\"port\": 443|\"port\": $PORT_VLESS|g" /usr/local/etc/xray/config.json
 
 mkdir /ssl
 cp -a /etc/openvpn/easy-rsa/keys/server.crt /ssl/xray.crt
@@ -990,6 +997,14 @@ WS_PATH=$(cat /usr/local/etc/xray/config.json | jq .inbounds[0].settings.fallbac
 WS_PATH_WITHOUT_SLASH=$(echo $WS_PATH | tr -d '/')
   
 echo "vless://$UUID@$DOMAIN:$PORT?path=%2f$WS_PATH_WITHOUT_SLASH%2f&security=tls&encryption=none&host=$DOMAIN&type=ws&sni=www.pldt.com.ph#FIRENETDEV" >> /root/.web/v2ray.txt
+
+echo "vless://$UUID@$DOMAIN:$PORT?path=%2f$WS_PATH_WITHOUT_SLASH%2f&security=tls&encryption=none&host=$DOMAIN&type=ws&sni=www.pldt.com.ph#FIRENETDEV" >> /var/www/html/vmess_config.txt
+
+echo "IP=$server_ip
+XRAY_TLS_PORT=$PORT
+XRAY_UUID=$UUID
+XRAY_PATH=/$WS_PATH_WITHOUT_SLASH/
+XRAY_VLESS=vless://$UUID@$DOMAIN:$PORT?path=%2f$WS_PATH_WITHOUT_SLASH%2f&security=tls&encryption=none&host=$DOMAIN&type=ws&sni=www.pldt.com.ph#XRAY" >> /var/www/html/server.txt
   
 } &>/dev/null
 }
@@ -1013,8 +1028,8 @@ install_rclocal(){
     sudo systemctl start openvpn@server2.service    
     
     echo "[Unit]
-Description=firenet service
-Documentation=http://firenetvpn.com
+Description=Vollam Service
+Documentation=https://vollam.com
 
 [Service]
 Type=oneshot
@@ -1041,7 +1056,6 @@ screen -dmS socks python /etc/socks-ws-ssl.py 8002
 systemctl restart client-sldns
 systemctl restart server-sldns
 ps x | grep 'udpvpn' | grep -v 'grep' || screen -dmS udpvpn /usr/bin/badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 10000 --max-connections-for-client 10 --client-socket-sndbuf 10000
-screen -dmS webinfo php -S 0.0.0.0:5623 -t /root/.web/
 bash /etc/.monitor aio
 systemctl restart squid
 exit 0' >> /etc/rc.local
@@ -1112,6 +1126,7 @@ installBBR
 install_monitoring
 install_squid
 install_openvpn
+install_xray
 install_slowdns
 install_firewall_kvm
 install_stunnel
