@@ -49,8 +49,10 @@ OBFS='vollam';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='azimaxus';
-DOMAIN=4zyg.ruzain.com
-NS=sdip.ruzain.com
+DOMAIN=drbb.ruzain.com
+NS=yj16.ruzain.com
+PORT_VLESS='8444';
+PORT_NTLS='8080';
 timedatectl set-timezone Asia/Riyadh
 if [[ $(grep "nogroup" /etc/group) ]]; then
     cert_group="nogroup"
