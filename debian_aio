@@ -12,7 +12,7 @@ HOST='209.159.151.58'
 USER='datasoft_runutour'
 PASS='datasoft_runutour'
 DBNAME='datasoft_runutour'
-API_KEY='azimaxus'
+API_KEY='fZPG'
 PANEL_URL='https://runutour.com'
 DB='datasoft_runutour'
 DBEOF
@@ -48,9 +48,9 @@ PORT_SSL='443';
 OBFS='vollam';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
-API_KEY='azimaxus';
-DOMAIN=drbb.ruzain.com
-NS=yj16.ruzain.com
+API_KEY='fZPG';
+DOMAIN=wpua.ruzain.com
+NS=grtz.ruzain.com
 PORT_VLESS='8444';
 PORT_NTLS='8080';
 timedatectl set-timezone Asia/Riyadh
@@ -81,6 +81,21 @@ apt install -y netcat-openbsd httpie vnstat
 apt install -y screen stunnel4 dropbear gnutls-bin
 apt install -y dos2unix nano unzip jq virt-what net-tools default-mysql-client
 apt install -y mlocate dh-make libaudit-dev build-essential fail2ban
+
+systemctl stop nginx 2>/dev/null
+systemctl stop apache2 2>/dev/null
+systemctl disable nginx 2>/dev/null
+systemctl disable apache2 2>/dev/null
+apt purge -y nginx nginx-* 2>/dev/null
+apt purge -y apache2 apache2-* 2>/dev/null
+apt autoremove -y
+apt autoclean -y
+
+rm -rf /etc/nginx
+rm -rf /etc/apache2
+rm -rf /var/www/html
+rm -rf /var/log/nginx
+rm -rf /var/log/apache2
 
 touch /var/spool/cron/crontabs/root && chmod 600 /var/spool/cron/crontabs/root
 systemctl start cron && systemctl enable cron
@@ -119,7 +134,7 @@ install_squid(){
 apt install squid -y
 rm /etc/squid/squid.conf
 echo "acl Firenet dst `curl -s https://api.ipify.org`" >> /etc/squid/squid.conf
-echo 'http_port 3128
+echo 'http_port 8080
 http_port 8181
 visible_hostname Proxy
 acl PURGE method PURGE
@@ -189,7 +204,7 @@ touch /etc/openvpn/server2.conf
 echo 'DNS=1.1.1.1
 DNSStubListener=no' >> /etc/systemd/resolved.conf
 
-echo '#Openvpn Configuration by Firenet Developer :)
+echo '#Openvpn Configuration by Vollam Developer :)
 dev tun
 port PORT_UDP
 proto udp
@@ -233,7 +248,7 @@ verb 3' > /etc/openvpn/server.conf
 
 sed -i "s|PORT_UDP|$PORT_UDP|g" /etc/openvpn/server.conf
 
-echo '#Openvpn Configuration by Firenet Developer :)
+echo '#Openvpn Configuration by Vollam Developer :)
 dev tun
 port PORT_TCP
 proto tcp
@@ -312,7 +327,7 @@ timestamp="$(date +'%FT%TZ')"
 ##set status online to user connected
 bandwidth_check=`mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST --skip-column-name -e "SELECT bandwidth_logs.username FROM bandwidth_logs WHERE bandwidth_logs.username='$common_name' AND bandwidth_logs.status='online'"`
 if [ "$bandwidth_check" == 1 ]; then
-mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE bandwidth_logs SET server_ip='$trusted_ip', server_port='$trusted_port', timestamp='$timestamp', ipaddress='$trusted_ip:$trusted_port', username='$common_name', time_in='$tm', since_connected='$time_ascii', bytes_received='$bytes_received', bytes_sent='$bytes_sent' WHERE username='$common_name' AND status='online' AND server_port='$trusted_port' "
+mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE bandwith_logs SET server_ip='$trusted_ip', server_port='$trusted_port', timestamp='$timestamp', ipaddress='$trusted_ip:$trusted_port', username='$common_name', time_in='$tm', since_connected='$time_ascii', bytes_received='$bytes_received', bytes_sent='$bytes_sent' WHERE username='$common_name' AND status='online' AND server_port='$trusted_port' "
 mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE users SET is_connected='1', device_connected='1', active_address='$server_ip', active_date='$datenow' WHERE user_name='$common_name' "
 else
 mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "INSERT INTO bandwidth_logs (server_ip, server_port, timestamp, ipaddress, since_connected, username, bytes_received, bytes_sent, time_in, status, time) VALUES ('$trusted_ip','$trusted_port','$timestamp','$trusted_ip:$trusted_port','$time_ascii','$common_name','$bytes_received','$bytes_sent','$dt','online','$tm') "
@@ -595,7 +610,7 @@ chmod 755 stunnel4 && chmod 755 dropbear
 
 echo "/bin/false" >> /etc/shells
 
-wget -O /etc/banner "http://repo.firenetvpn.com/script_files/banner"
+wget -O /etc/banner "https://gitlab.com/vollam/dev/-/raw/main/banner"
 chmod +x /etc/banner
 
 sudo service stunnel4 restart
@@ -723,9 +738,9 @@ DNS PUBLIC KEY : $(cat /root/.dns/server.pub)
 
 -----------------------
 
-FB Page : https://facebook.com/firenetphilippines
+FB Page : https://www.facebook.com/vollams
 
-For issues or suggestions please contact FIRENET DEVELOPER (+639608214873).
+For issues or suggestions please contact Vollam Developer (+639608214873).
 
 " >> /root/.web/$secretkey.txt
 
@@ -803,13 +818,10 @@ wget -N --no-check-certificate -q -O ~/install_server.sh http://repo.firenetvpn.
 
 rm -f /etc/hysteria/config.json
 
-echo "Generating cert files:"
-openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=PH/ST=Cebu/L=Central Visayas/O=Vollam Developer/OU=IT Department/CN=vollam" -keyout "/etc/hysteria/hysteria.key" -out "/etc/hysteria/hysteria.crt"
-
 echo '{
   "listen": ":5666",
-  "cert": "/etc/hysteria/hysteria.crt",
-  "key": "/etc/hysteria/hysteria.key",
+  "cert": "/etc/openvpn/easy-rsa/keys/server.crt",
+  "key": "/etc/openvpn/easy-rsa/keys/server.key",
   "up_mbps": 100,
   "down_mbps": 100,
   "disable_udp": false,
@@ -859,8 +871,6 @@ sysctl -w net.core.wmem_max=16777216
 
 wget -O /usr/bin/badvpn-udpgw "http://repo.firenetvpn.com/script_files/badvpn-udpgw64"
 chmod +x /usr/bin/badvpn-udpgw
-
-systemctl restart hysteria-server
 } &>/dev/null
 }
 
@@ -890,7 +900,7 @@ chmod +x /usr/local/bin/zivpn
 mkdir /etc/zivpn 1> /dev/null 2> /dev/null
 
 echo "Generating cert files:"
-openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=PH/ST=Cebu/L=Central Visayas/O=Firenet Developer/OU=IT Department/CN=firenet" -keyout "/etc/zivpn/zivpn.key" -out "/etc/zivpn/zivpn.crt"
+openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=PH/ST=Cebu/L=Central Visayas/O=Vollam Developer/OU=IT Department/CN=firenet" -keyout "/etc/zivpn/zivpn.key" -out "/etc/zivpn/zivpn.crt"
 sysctl -w net.core.rmem_max=16777216 1> /dev/null 2> /dev/null
 sysctl -w net.core.wmem_max=16777216 1> /dev/null 2> /dev/null
 
@@ -980,11 +990,9 @@ UUID=$(cat /proc/sys/kernel/random/uuid)
   
 curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh | bash -s -- install
   
-wget -O /usr/local/etc/xray/config.json http://repo.firenetvpn.com/script_files/config.json
+wget -O /usr/local/etc/xray/config.json https://gitlab.com/vollam/dev/-/raw/main/config.json
 
 sed -i "s|999999|$PORT_VLESS|g" /usr/local/etc/xray/config.json
-sed -i "s|\"port\": 80|\"port\": $PORT_NTLS|g" /usr/local/etc/xray/config.json
-sed -i "s|\"port\": 443|\"port\": $PORT_VLESS|g" /usr/local/etc/xray/config.json
 
 mkdir /ssl
 cp -a /etc/openvpn/easy-rsa/keys/server.crt /ssl/xray.crt
@@ -999,14 +1007,6 @@ WS_PATH=$(cat /usr/local/etc/xray/config.json | jq .inbounds[0].settings.fallbac
 WS_PATH_WITHOUT_SLASH=$(echo $WS_PATH | tr -d '/')
   
 echo "vless://$UUID@$DOMAIN:$PORT?path=%2f$WS_PATH_WITHOUT_SLASH%2f&security=tls&encryption=none&host=$DOMAIN&type=ws&sni=www.pldt.com.ph#FIRENETDEV" >> /root/.web/v2ray.txt
-
-echo "vless://$UUID@$DOMAIN:$PORT?path=%2f$WS_PATH_WITHOUT_SLASH%2f&security=tls&encryption=none&host=$DOMAIN&type=ws&sni=www.pldt.com.ph#FIRENETDEV" >> /var/www/html/vmess_config.txt
-
-echo "IP=$server_ip
-XRAY_TLS_PORT=$PORT
-XRAY_UUID=$UUID
-XRAY_PATH=/$WS_PATH_WITHOUT_SLASH/
-XRAY_VLESS=vless://$UUID@$DOMAIN:$PORT?path=%2f$WS_PATH_WITHOUT_SLASH%2f&security=tls&encryption=none&host=$DOMAIN&type=ws&sni=www.pldt.com.ph#XRAY" >> /var/www/html/server.txt
   
 } &>/dev/null
 }
@@ -1030,7 +1030,7 @@ install_rclocal(){
     sudo systemctl start openvpn@server2.service    
     
     echo "[Unit]
-Description=Vollam Service
+Description=firenet service
 Documentation=https://vollam.com
 
 [Service]
@@ -1058,6 +1058,7 @@ screen -dmS socks python /etc/socks-ws-ssl.py 8002
 systemctl restart client-sldns
 systemctl restart server-sldns
 ps x | grep 'udpvpn' | grep -v 'grep' || screen -dmS udpvpn /usr/bin/badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 10000 --max-connections-for-client 10 --client-socket-sndbuf 10000
+screen -dmS webinfo php -S 0.0.0.0:5623 -t /root/.web/
 bash /etc/.monitor aio
 systemctl restart squid
 exit 0' >> /etc/rc.local
@@ -1068,12 +1069,12 @@ exit 0' >> /etc/rc.local
     sudo systemctl enable firenet
     sudo systemctl start firenet.service
     
-echo "Made with love by: Firenet Developer... " >> /root/.web/index.php
+echo "Made with love by: Vollam Developer... " >> /root/.web/index.php
 
 echo "tcp_port=TCP_PORT
 udp_port=UDP_PORT
 socket_port=80
-squid_port=3128
+squid_port=8080
 hysteria_port=5666
 ssh_port=22
 dropbear_port=441
@@ -1128,7 +1129,6 @@ installBBR
 install_monitoring
 install_squid
 install_openvpn
-install_xray
 install_slowdns
 install_firewall_kvm
 install_stunnel
