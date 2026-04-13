@@ -49,7 +49,7 @@ OBFS='None';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=z.ruzain.com
+DOMAIN=nq4h.ruzain.com
 NS=
 PORT_VLESS='8444';
 PORT_NTLS='8080';
@@ -987,27 +987,6 @@ reboot
 }
 
 install_rclocal(){
-
-    # -- PHP web server systemd service (port 5623) --
-    cat > /etc/systemd/system/phpweb.service << 'PHPSVC'
-[Unit]
-Description=PHP Web Server (Firenet Info Page)
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/php -S 0.0.0.0:5623 -t /root/.web/
-Restart=always
-RestartSec=5
-User=root
-
-[Install]
-WantedBy=multi-user.target
-PHPSVC
-
-    systemctl daemon-reload
-    systemctl enable phpweb
-    systemctl start phpweb
 
     echo "[Unit]
 Description=vollam service
