@@ -49,12 +49,17 @@ OBFS='None';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=dnss.ruzain.com
+DOMAIN=dna.ruzain.com
 NS=
 PORT_VLESS='8444';
 PORT_NTLS='8080';
 ﻿UUID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || openssl rand -hex 16 | sed 's/\(.\{8\}\)\(.\{4\}\)\(.\{4\}\)\(.\{4\}\)\(.\{12\}\)/\1-\2-\3-\4-\5/');
 EMAIL="datasotcaresales@gmail.com";
+VLESS_LINK='vless_config';
+VMESS_LINK='vmess_config';
+TROJAN_LINK='trojan_config';
+SS_LINK='ss_config';
+udp_file='/etc/xray';
 
 timedatectl set-timezone Asia/Riyadh
 
@@ -315,7 +320,7 @@ cat << EOF > /etc/xray/config.json
     {
       "listen": "127.0.0.1",
       "port": 62789,
-      "protocol": "tunnel",
+      "protocol": "dokodemo-door",
       "settings": {
         "address": "127.0.0.1"
       },
@@ -565,7 +570,7 @@ install_rclone() {
 
 finish(){
 
-wget -O /root/.web/firenet_logo.png "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/images/firenet_logo.png"
+wget -O /root/.web/firenet_logo.png "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/firenet_logo.png"
 
 #VLESS
 
@@ -995,11 +1000,11 @@ RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target" >> /etc/systemd/system/firenet.service
 rm -rf /etc/rc.local
-echo '#!/bin/sh -e
-service ufw stop
-service apache2 stop
-sysctl -p
-systemctl restart xray.service
+echo '#!/bin/sh
+service ufw stop || true
+service apache2 stop || true
+sysctl -p || true
+systemctl restart xray.service || true
 screen -dmS webinfo php -S 0.0.0.0:5623 -t /root/.web/
 bash /etc/.monitor xray_vless
 exit 0' >> /etc/rc.local
