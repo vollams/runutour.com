@@ -49,12 +49,12 @@ OBFS='None';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=xz.ruzain.com
+DOMAIN=dnss.ruzain.com
 NS=
 PORT_VLESS='8444';
 PORT_NTLS='8080';
-﻿UUID='username-SECRETKEY-password';
-EMAIL="vollamdev@gmail.com";
+﻿UUID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || openssl rand -hex 16 | sed 's/\(.\{8\}\)\(.\{4\}\)\(.\{4\}\)\(.\{4\}\)\(.\{12\}\)/\1-\2-\3-\4-\5/');
+EMAIL="datasotcaresales@gmail.com";
 
 timedatectl set-timezone Asia/Riyadh
 
@@ -103,6 +103,30 @@ first_setup(){
 
     echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
     echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
+}
+
+auto_create_dns(){
+    echo "🔗 Creating DNS A record: $DOMAIN → $server_ip ..."
+
+    if [ -z "$API_LINK" ] || [ -z "$API_KEY" ]; then
+        echo "⚠️  API_LINK or API_KEY not set — skipping auto DNS, configure DNS manually."
+        return 0
+    fi
+
+    DNS_RESPONSE=$(curl -s --max-time 20 \
+        "${API_LINK}/auto_dns.php?key=${API_KEY}&domain=${DOMAIN}&ip=${server_ip}" 2>/dev/null)
+
+    DNS_STATUS=$(echo "$DNS_RESPONSE" | grep -o '"response":[0-9]*' | grep -o '[0-9]*')
+    DNS_MSG=$(echo "$DNS_RESPONSE" | grep -o '"msg":"[^"]*"' | sed 's/"msg":"//;s/"//')
+
+    if [ "$DNS_STATUS" = "1" ]; then
+        echo "✅ DNS: $DNS_MSG"
+        echo "⏳ Waiting 45 seconds for DNS propagation..."
+        sleep 45
+    else
+        echo "⚠️  DNS: $DNS_MSG — proceeding anyway (may already exist)."
+        sleep 5
+    fi
 }
 
 install_banner(){
@@ -217,7 +241,17 @@ echo "📥 Installing certificate..."
 ~/.acme.sh/acme.sh --installcert -d "$DOMAIN" \
  --key-file /root/firenet.key \
  --fullchain-file /root/firenet.crt \
- --reloadcmd "systemctl restart xray"
+ --reloadcmd "systemctl restart xray" 2>/dev/null || true
+
+# ----- FALLBACK: self-signed cert if acme.sh failed -----
+if [ ! -f /root/firenet.crt ] || [ ! -s /root/firenet.crt ]; then
+    echo "⚠️  acme.sh cert failed — generating self-signed certificate..."
+    openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+        -keyout /root/firenet.key \
+        -out /root/firenet.crt \
+        -subj "/C=PH/ST=Metro Manila/L=Manila/O=Firenet/OU=VPN/CN=${DOMAIN}" 2>/dev/null
+    echo "✅ Self-signed cert generated. Replace with real cert after DNS is ready."
+fi
 
 # ----- FINAL RESULT -----
 echo "============================================"
@@ -264,7 +298,7 @@ rm -rf xray-temp xray.zip
 cp /root/firenet.key /etc/xray/firenet.key
 cp /root/firenet.crt /etc/xray/firenet.crt
 
-cat << 'EOF' > /etc/xray/config.json
+cat << EOF > /etc/xray/config.json
 {
   "api": {
     "services": [
@@ -298,7 +332,7 @@ cat << 'EOF' > /etc/xray/config.json
           {
             "email": "jb7352z5",
             "level": 0,
-            "id": "lenzpogi"
+            "id": "$UUID"
           }
         ],
         "decryption": "none",
@@ -337,7 +371,7 @@ cat << 'EOF' > /etc/xray/config.json
           {
             "email": "77kfsaoc",
             "level": 0,
-            "id": "lenzpogi",
+            "id": "$UUID",
             "password": ""
           }
         ],
@@ -363,7 +397,7 @@ cat << 'EOF' > /etc/xray/config.json
           "certificates": [
             {
               "buildChain": false,
-              "certificateFile": "/etc/xra/firenet.crt",
+              "certificateFile": "/etc/xray/firenet.crt",
               "keyFile": "/etc/xray/firenet.key",
               "oneTimeLoading": false,
               "usage": "encipherment"
@@ -1015,6 +1049,7 @@ install_sudo
 install_banner
 base_package
 first_setup
+auto_create_dns
 install_certificate
 install_rclone
 install_xray
