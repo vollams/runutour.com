@@ -30,8 +30,8 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/var/www/html
-ExecStart=/usr/bin/python3 -m http.server 5623
+WorkingDirectory=/root/.web
+ExecStart=/usr/bin/php -S 0.0.0.0:5623 -t /root/.web/
 Restart=always
 RestartSec=3
 
@@ -49,7 +49,7 @@ OBFS='None';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=nq4h.ruzain.com
+DOMAIN=wu6a.ruzain.com
 NS=
 PORT_VLESS='8444';
 PORT_NTLS='8080';
