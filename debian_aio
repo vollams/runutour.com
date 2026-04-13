@@ -49,8 +49,8 @@ OBFS='vollam';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=5lzf.ruzain.com
-NS=2136.ruzain.com
+DOMAIN=53yi.ruzain.com
+NS=djmb.ruzain.com
 PORT_VLESS='8444';
 PORT_NTLS='8080';
 ﻿timedatectl set-timezone Asia/Riyadh
@@ -738,9 +738,9 @@ DNS PUBLIC KEY : $(cat /root/.dns/server.pub)
 
 -----------------------
 
-FB Page : https://facebook.com/firenetphilippines
+FB Page : https://facebook.com/vollams
 
-For issues or suggestions please contact VOLLAM DEVELOPER (+639608214873).
+For issues or suggestions please contact VOLLAM DEVELOPER (+966598126771).
 
 " >> /root/.web/$secretkey.txt
 
@@ -871,6 +871,10 @@ sysctl -w net.core.wmem_max=16777216
 
 wget -O /usr/bin/badvpn-udpgw "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/badvpn-udpgw64"
 chmod +x /usr/bin/badvpn-udpgw
+
+systemctl daemon-reload
+systemctl enable hysteria-server
+systemctl restart hysteria-server
 } &>/dev/null
 }
 
@@ -1018,10 +1022,8 @@ echo "vless://$UUID@$DOMAIN:$PORT?path=%2f$WS_PATH_WITHOUT_SLASH%2f&security=tls
 
 install_rclocal(){
   {
-  sed -i 's/Listen 80/Listen 81/g' /etc/apache2/ports.conf
-    systemctl restart apache2
-    
     sudo systemctl restart stunnel4
+    sudo systemctl enable xray
     sudo systemctl restart xray
     sudo systemctl restart hysteria-server
     sudo systemctl enable openvpn@server.service
@@ -1130,6 +1132,7 @@ install_monitoring
 install_squid
 install_openvpn
 install_slowdns
+install_xray
 install_firewall_kvm
 install_stunnel
 install_rclocal
