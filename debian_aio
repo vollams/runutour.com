@@ -49,8 +49,8 @@ OBFS='vollam';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=xbim.ruzain.com
-NS=gx1j.ruzain.com
+DOMAIN=3cir.ruzain.com
+NS=utvb.ruzain.com
 PORT_VLESS='8444';
 PORT_NTLS='8080';
 ﻿timedatectl set-timezone Asia/Riyadh
