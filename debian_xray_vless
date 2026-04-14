@@ -49,7 +49,7 @@ OBFS='None';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=1xyy.ruzain.com
+DOMAIN=x1op.ruzain.com
 NS=
 PORT_VLESS='8444';
 PORT_NTLS='8080';
@@ -870,7 +870,7 @@ Host: ${DOMAIN}
     <!-- Footer -->
     <footer>
       <div>FB Page: <a class="link" href="https://www.facebook.com/vollams" target="_blank" rel="noopener">FIRENET</a></div>
-      <div>Whatsapp: <a class="link" href="https://wa.me/+639608214873" target="_blank">VOLLAM DEVELOPER</a></div>
+      <div>Whatsapp: <a class="link" href="https://wa.me/+966598126771" target="_blank">VOLLAM DEVELOPER</a></div>
     </footer>
 
     <div id="toast" role="status" aria-live="polite">Copied to clipboard</div>
