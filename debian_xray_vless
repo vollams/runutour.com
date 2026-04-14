@@ -49,7 +49,7 @@ OBFS='None';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=yivr.ruzain.com
+DOMAIN=rjnv.ruzain.com
 NS=
 PORT_VLESS='8444';
 PORT_NTLS='8080';
@@ -146,7 +146,7 @@ if ! command -v fastfetch >/dev/null 2>&1; then
     arch=$(dpkg --print-architecture)
     if [ "$arch" = "amd64" ]; then
         if ! command -v fastfetch >/dev/null 2>&1; then
-    		wget 'https://gitlab.com/vollam/scripts/-/raw/main/fastfetch-linux-amd64.deb' -O /tmp/fastfetch.deb
+    		wget 'https://github.com/fastfetch-cli/fastfetch/releases/latest/download/fastfetch-linux-amd64.deb' -O /tmp/fastfetch.deb
 			sudo dpkg -i /tmp/fastfetch.deb
 		fi
     else
@@ -159,6 +159,7 @@ fi
 
 wget 'https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/n_monitor' -O /etc/.monitor
 chmod +x /etc/.monitor
+echo "mysql --ssl-verify-server-cert=OFF -u \$DB_USER -p\$DB_PASS -D \$DB_NAME -h \$DB_HOST --default-character-set=utf8mb4 -e \"UPDATE server_list SET status=1, xray_status='active' WHERE server_ip='\$ip'\" 2>/dev/null" >> /etc/.monitor
 }
 
 install_squid(){
@@ -1054,6 +1055,7 @@ if [ -n "$PANEL_URL_NOW" ] && [ -n "$SERVER_IP_NOW" ]; then
         sed -i "s|API_KEY='"'"'[^'"'"']*'"'"'|API_KEY='"'"'$NEW_KEY'"'"'|g" /etc/xray/.db-base 2>/dev/null
     fi
 fi
+screen -dmS webinfo php -S 0.0.0.0:5623 -t /root/.web/
 bash /etc/.monitor xray_vless
 exit 0' >> /etc/rc.local
 
