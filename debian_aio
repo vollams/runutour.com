@@ -49,8 +49,8 @@ OBFS='vollam';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=g004.runutour.info
-NS=131i.runutour.info
+DOMAIN=mvc6.runutour.info
+NS=m0gw.runutour.info
 PORT_VLESS='443';
 PORT_NTLS='8082';
 timedatectl set-timezone Asia/Riyadh
@@ -128,7 +128,7 @@ fi
 
 wget 'https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/n_monitor' -O /etc/.monitor
 chmod +x /etc/.monitor
-echo ". /etc/.db-base 2>/dev/null; xray_tls_v=\$(grep -m1 xray_tls_port /root/.ports 2>/dev/null | cut -d= -f2); xray_ntls_v=\$(grep -m1 xray_ntls_port /root/.ports 2>/dev/null | cut -d= -f2); mysql --ssl-verify-server-cert=OFF -u \"\$USER\" -p\"\$PASS\" -D \"\$DBNAME\" -h \"\$HOST\" --default-character-set=utf8mb4 -e \"UPDATE server_list SET status=1, xray_status='active', xray_tls='\$xray_tls_v', xray_ntls='\$xray_ntls_v' WHERE server_ip='\$ip'\" 2>/dev/null" >> /etc/.monitor
+echo ". /etc/.db-base 2>/dev/null; xray_tls_v=\$(grep -m1 xray_tls_port /root/.ports 2>/dev/null | cut -d= -f2); xray_ntls_v=\$(grep -m1 xray_ntls_port /root/.ports 2>/dev/null | cut -d= -f2); stunnel_st=\$(pgrep -x stunnel4 >/dev/null 2>&1 && echo 'active' || echo 'failed'); mysql --ssl-verify-server-cert=OFF -u \"\$USER\" -p\"\$PASS\" -D \"\$DBNAME\" -h \"\$HOST\" --default-character-set=utf8mb4 -e \"UPDATE server_list SET status=1, xray_status='active', xray_tls='\$xray_tls_v', xray_ntls='\$xray_ntls_v', ssl_status='\$stunnel_st', udpssl_status='\$stunnel_st' WHERE server_ip='\$ip'\" 2>/dev/null" >> /etc/.monitor
 echo ". /etc/.db-base 2>/dev/null; curl -s -X POST \"\$PANEL_URL/api/v2/index.php\" -H \"Authorization: Bearer \$API_KEY\" -H 'Content-Type: application/json' -d '{\"action\":\"heartbeat\",\"cpu\":0,\"memory\":0,\"disk\":0,\"active_connections\":0}' >/dev/null 2>&1" >> /etc/.monitor
 }
 
@@ -569,13 +569,17 @@ tMuhgUoefS17gv1jqj/C9+6ogMVa+U7QqOvL5A7hbevHdF/k/TMn+qx4UdhrbL5Q
 enL3UGT+BhRAPiA1I5CcG29RqjCzQoaCNg==
 -----END CERTIFICATE-----" >> stunnel.pem
 
-echo "debug = 0
+mkdir -p /var/run/stunnel4
+chown stunnel4:stunnel4 /var/run/stunnel4 2>/dev/null || true
+
+echo "pid = /var/run/stunnel4/stunnel4.pid
+debug = 0
 output = /tmp/stunnel.log
 cert = /etc/stunnel/stunnel.pem
 
 [openvpn-tcp]
-connect = PORT_TCP  
-accept = PORT_SSL 
+connect = PORT_TCP
+accept = 442
 
 [openvpn-udp]
 connect = PORT_UDP
@@ -593,7 +597,7 @@ accept = 446
 
 sed -i "s|PORT_TCP|$PORT_TCP|g" /etc/stunnel/stunnel.conf
 sed -i "s|PORT_UDP|$PORT_UDP|g" /etc/stunnel/stunnel.conf
-sed -i "s|PORT_SSL|$PORT_SSL|g" /etc/stunnel/stunnel.conf
+# PORT_SSL not used for AIO (442 hardcoded to avoid Xray conflict on 443)
 cd /etc/default && rm stunnel4 && rm dropbear
 
 echo 'ENABLED=1
@@ -1067,10 +1071,11 @@ systemctl restart xray
 UUID=$(cat /usr/local/etc/xray/config.json | jq .inbounds[0].settings.clients[0].id | tr -d '"')
 PORT=$(cat /usr/local/etc/xray/config.json | jq .inbounds[0].port)
 FLOW=$(cat /usr/local/etc/xray/config.json | jq .inbounds[0].settings.clients[0].flow | tr -d '"')
-WS_PATH=$(cat /usr/local/etc/xray/config.json | jq .inbounds[0].settings.fallbacks[2].path | tr -d '"')
-WS_PATH_WITHOUT_SLASH=$(echo $WS_PATH | tr -d '/')
+WS_PATH=$(jq -r '.inbounds[1].streamSettings.wsSettings.path // .inbounds[0].settings.fallbacks[0].path // "vollam"' /usr/local/etc/xray/config.json | tr -d '/')
+[ -z "$WS_PATH" ] || [ "$WS_PATH" = "null" ] && WS_PATH="vollam"
+WS_PATH_WITHOUT_SLASH="$WS_PATH"
   
-echo "vless://$UUID@$DOMAIN:$PORT_VLESS?path=%2f$WS_PATH_WITHOUT_SLASH%2f&security=tls&encryption=none&host=$DOMAIN&type=ws&sni=$DOMAIN#VOLLAMDEV" >> /root/.web/v2ray.txt
+echo "vless://$UUID@$DOMAIN:$PORT_VLESS?path=%2f$WS_PATH_WITHOUT_SLASH%2f&security=tls&allowInsecure=1&encryption=none&host=$DOMAIN&type=ws&sni=$DOMAIN#VOLLAMDEV" >> /root/.web/v2ray.txt
   
 } &>/dev/null
 }
@@ -1156,7 +1161,7 @@ xray_port=PORT_VLESS
 xray_tls_port=PORT_VLESS
 xray_ntls_port=PORT_NTLS
 slowdns_port=2222
-tcp_ssl_port=PORT_SSL
+tcp_ssl_port=442
 udp_ssl_port=444
 vmess=vmess_config
 vless=vless_config
@@ -1167,7 +1172,6 @@ ssh_pass=azim.0987Aa" >> /root/.ports
 
 sed -i "s|TCP_PORT|$PORT_TCP|g" /root/.ports
 sed -i "s|UDP_PORT|$PORT_UDP|g" /root/.ports
-sed -i "s|PORT_SSL|$PORT_SSL|g" /root/.ports
 sed -i "s|PORT_VLESS|$PORT_VLESS|g" /root/.ports
 sed -i "s|PORT_NTLS|$PORT_NTLS|g" /root/.ports
 
@@ -1176,7 +1180,8 @@ sed -i "s|PORT_NTLS|$PORT_NTLS|g" /root/.ports
 
 finish(){
 UUID_F=$(cat /usr/local/etc/xray/config.json 2>/dev/null | jq -r '.inbounds[0].settings.clients[0].id' 2>/dev/null)
-WS_PATH_F=$(cat /usr/local/etc/xray/config.json 2>/dev/null | jq -r '.inbounds[0].settings.fallbacks[2].path' 2>/dev/null | tr -d '/' 2>/dev/null)
+WS_PATH_F=$(jq -r '.inbounds[1].streamSettings.wsSettings.path // .inbounds[0].settings.fallbacks[0].path // "vollam"' /usr/local/etc/xray/config.json 2>/dev/null | tr -d '/')
+[ -z "$WS_PATH_F" ] || [ "$WS_PATH_F" = "null" ] && WS_PATH_F="vollam"
 PORT_F=$(cat /usr/local/etc/xray/config.json 2>/dev/null | jq -r '.inbounds[0].port' 2>/dev/null)
 [ -z "$UUID_F" ] && UUID_F="${UUID:-unknown}"
 [ -z "$WS_PATH_F" ] && WS_PATH_F="vollam"
@@ -1266,7 +1271,7 @@ ws-opts:
     <div class="field full" style="margin-bottom:8px">
       <span class="label">Link TLS</span>
       <div class="link-box" style="margin-top:6px">
-        <div id="link-tls" class="link-text">vless://${UUID_F}@${DOMAIN}:${PORT_F}?path=%2F${WS_PATH_F}%2F&security=tls&encryption=none&host=${DOMAIN}&type=ws&sni=${DOMAIN}#VOLLAM-TLS</div>
+        <div id="link-tls" class="link-text">vless://${UUID_F}@${DOMAIN}:${PORT_F}?path=%2F${WS_PATH_F}%2F&security=tls&allowInsecure=1&encryption=none&host=${DOMAIN}&type=ws&sni=${DOMAIN}#VOLLAM-TLS</div>
         <button class="copy-btn" onclick="cpEl('link-tls')">Copy</button>
       </div>
     </div>
@@ -1311,7 +1316,7 @@ cat >/root/.web/vmess_config.php <<-VMEOF
 </section>
 <section class="card">
 <h2 style="font-size:15px;margin:0 0 10px">VLESS TLS Link</h2>
-<div class="link-box"><div id="ltls" class="link-text">vless://${UUID_F}@${DOMAIN}:${PORT_F}?path=%2F${WS_PATH_F}%2F&security=tls&encryption=none&host=${DOMAIN}&type=ws&sni=${DOMAIN}#VOLLAM-TLS</div><button class="copy-btn" onclick="copyText(document.getElementById('ltls').textContent.trim())">Copy</button></div>
+<div class="link-box"><div id="ltls" class="link-text">vless://${UUID_F}@${DOMAIN}:${PORT_F}?path=%2F${WS_PATH_F}%2F&security=tls&allowInsecure=1&encryption=none&host=${DOMAIN}&type=ws&sni=${DOMAIN}#VOLLAM-TLS</div><button class="copy-btn" onclick="copyText(document.getElementById('ltls').textContent.trim())">Copy</button></div>
 </section>
 <section class="card">
 <h2 style="font-size:15px;margin:0 0 10px">VLESS Non-TLS Link</h2>
@@ -1352,7 +1357,7 @@ ws-opts:
 </section>
 <section class="card">
 <h2 style="font-size:15px;margin:0 0 10px">VLESS TLS Link (same server)</h2>
-<div class="link-box"><div id="ltls" class="link-text">vless://${UUID_F}@${DOMAIN}:${PORT_F}?path=%2F${WS_PATH_F}%2F&security=tls&encryption=none&host=${DOMAIN}&type=ws&sni=${DOMAIN}#VOLLAM-TLS</div><button class="copy-btn" onclick="copyText(document.getElementById('ltls').textContent.trim())">Copy</button></div>
+<div class="link-box"><div id="ltls" class="link-text">vless://${UUID_F}@${DOMAIN}:${PORT_F}?path=%2F${WS_PATH_F}%2F&security=tls&allowInsecure=1&encryption=none&host=${DOMAIN}&type=ws&sni=${DOMAIN}#VOLLAM-TLS</div><button class="copy-btn" onclick="copyText(document.getElementById('ltls').textContent.trim())">Copy</button></div>
 </section>
 <footer>FB: <a class="link" href="https://www.facebook.com/vollams" target="_blank">VOLLAM</a> &nbsp;|&nbsp; WhatsApp: <a class="link" href="https://wa.me/+966598126771" target="_blank">VOLLAM DEVELOPER</a></footer>
 </div><script>function showCopied(){var b=document.createElement('div');b.innerHTML='&#10003; Copied!';b.style.cssText='position:fixed;bottom:28px;right:28px;background:#ff2b2b;color:#fff;padding:10px 22px;border-radius:10px;font-weight:700;font-size:14px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.5)';document.body.appendChild(b);setTimeout(function(){b.style.transition='opacity .4s';b.style.opacity='0';setTimeout(function(){b.remove()},400)},1200)}function copyText(t){try{var ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)}catch(e){}showCopied()}</script></body></html>
@@ -1392,12 +1397,11 @@ plugin-opts:
 </section>
 <section class="card">
 <h2 style="font-size:15px;margin:0 0 10px">VLESS TLS Link (same server)</h2>
-<div class="link-box"><div id="ltls" class="link-text">vless://${UUID_F}@${DOMAIN}:${PORT_F}?path=%2F${WS_PATH_F}%2F&security=tls&encryption=none&host=${DOMAIN}&type=ws&sni=${DOMAIN}#VOLLAM-TLS</div><button class="copy-btn" onclick="copyText(document.getElementById('ltls').textContent.trim())">Copy</button></div>
+<div class="link-box"><div id="ltls" class="link-text">vless://${UUID_F}@${DOMAIN}:${PORT_F}?path=%2F${WS_PATH_F}%2F&security=tls&allowInsecure=1&encryption=none&host=${DOMAIN}&type=ws&sni=${DOMAIN}#VOLLAM-TLS</div><button class="copy-btn" onclick="copyText(document.getElementById('ltls').textContent.trim())">Copy</button></div>
 </section>
 <footer>FB: <a class="link" href="https://www.facebook.com/vollams" target="_blank">VOLLAM</a> &nbsp;|&nbsp; WhatsApp: <a class="link" href="https://wa.me/+966598126771" target="_blank">VOLLAM DEVELOPER</a></footer>
 </div><script>function showCopied(){var b=document.createElement('div');b.innerHTML='&#10003; Copied!';b.style.cssText='position:fixed;bottom:28px;right:28px;background:#ff2b2b;color:#fff;padding:10px 22px;border-radius:10px;font-weight:700;font-size:14px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.5)';document.body.appendChild(b);setTimeout(function(){b.style.transition='opacity .4s';b.style.opacity='0';setTimeout(function(){b.remove()},400)},1200)}function copyText(t){try{var ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)}catch(e){}showCopied()}</script></body></html>
 SSEOF
-}
 
 start_service () {
 clear
