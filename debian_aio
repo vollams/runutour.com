@@ -49,8 +49,8 @@ OBFS='vollam';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=6c42.ruzain.com
-NS=15rm.ruzain.com
+DOMAIN=f463.ruzain.com
+NS=qkkc.ruzain.com
 PORT_VLESS='8444';
 PORT_NTLS='8080';
 ﻿timedatectl set-timezone Asia/Riyadh
@@ -128,7 +128,7 @@ fi
 
 wget 'https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/n_monitor' -O /etc/.monitor
 chmod +x /etc/.monitor
-echo ". /etc/.db-base 2>/dev/null; mysql --ssl-verify-server-cert=OFF -u \"\$USER\" -p\"\$PASS\" -D \"\$DBNAME\" -h \"\$HOST\" --default-character-set=utf8mb4 -e \"UPDATE server_list SET status=1, xray_status='active' WHERE server_ip='\$ip'\" 2>/dev/null" >> /etc/.monitor
+echo ". /etc/.db-base 2>/dev/null; xray_tls_v=\$(grep -m1 xray_tls_port /root/.ports 2>/dev/null | cut -d= -f2); xray_ntls_v=\$(grep -m1 xray_ntls_port /root/.ports 2>/dev/null | cut -d= -f2); mysql --ssl-verify-server-cert=OFF -u \"\$USER\" -p\"\$PASS\" -D \"\$DBNAME\" -h \"\$HOST\" --default-character-set=utf8mb4 -e \"UPDATE server_list SET status=1, xray_status='active', xray_tls='\$xray_tls_v', xray_ntls='\$xray_ntls_v' WHERE server_ip='\$ip'\" 2>/dev/null" >> /etc/.monitor
 }
 
 install_squid(){
@@ -327,8 +327,8 @@ timestamp="$(date +'%FT%TZ')"
 
 ##set status online to user connected
 bandwidth_check=`mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST --skip-column-name -e "SELECT bandwidth_logs.username FROM bandwidth_logs WHERE bandwidth_logs.username='$common_name' AND bandwidth_logs.status='online'"`
-if [ "$bandwidth_check" == 1 ]; then
-mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE bandwith_logs SET server_ip='$trusted_ip', server_port='$trusted_port', timestamp='$timestamp', ipaddress='$trusted_ip:$trusted_port', username='$common_name', time_in='$tm', since_connected='$time_ascii', bytes_received='$bytes_received', bytes_sent='$bytes_sent' WHERE username='$common_name' AND status='online' AND server_port='$trusted_port' "
+if [ -n "$bandwidth_check" ]; then
+mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE bandwidth_logs SET server_ip='$trusted_ip', server_port='$trusted_port', timestamp='$timestamp', ipaddress='$trusted_ip:$trusted_port', username='$common_name', time_in='$tm', since_connected='$time_ascii', bytes_received='$bytes_received', bytes_sent='$bytes_sent' WHERE username='$common_name' AND status='online' AND server_port='$trusted_port' "
 mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE users SET is_connected='1', device_connected='1', active_address='$server_ip', active_date='$datenow' WHERE user_name='$common_name' "
 else
 mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "INSERT INTO bandwidth_logs (server_ip, server_port, timestamp, ipaddress, since_connected, username, bytes_received, bytes_sent, time_in, status, time) VALUES ('$trusted_ip','$trusted_port','$timestamp','$trusted_ip:$trusted_port','$time_ascii','$common_name','$bytes_received','$bytes_sent','$dt','online','$tm') "
@@ -348,7 +348,7 @@ dt="$(date +'%Y-%m-%d %H:%M:%S')"
 timestamp="$(date +'%FT%TZ')"
 
 mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE bandwidth_logs SET bytes_received='$bytes_received',bytes_sent='$bytes_sent',time_out='$dt', status='offline' WHERE username='$common_name' AND status='online'"
-mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE users SET is_connected='0', active_address='', active_date='' WHERE user_name='$common_name' "
+mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE users SET is_connected='0', device_connected='0', active_address='', active_date='' WHERE user_name='$common_name' "
 LENZ06
 
 sed -i "s|SERVER_IP|$server_ip|g" /etc/openvpn/login/disconnect.sh
@@ -645,23 +645,17 @@ sed -i 's/#AllowTcpForwarding yes/AllowTcpForwarding yes/g' /etc/ssh/sshd_config
 # SET DNSTT
 export DNSDIR=/etc/.dnsquest
 export DNSCONFIG=/root/.dns
-mkdir -m 777 $DNSDIR
-mkdir -m 777 $DNSCONFIG
+mkdir -p $DNSDIR
+mkdir -p $DNSCONFIG
 
 # BUILD DNSTT SERVER
-cd $DNSDIR/dnstt/dnstt-server
-wget -O dnstt-server "https://gitlab.com/vollam/scripts/-/raw/main/dnstt-server"
-chmod +x dnstt-server
-wget -O dnstt-client "https://gitlab.com/vollam/scripts/-/raw/main/dnstt-client"
-chmod +x dnstt-client
+wget -O $DNSDIR/dnstt-server "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/dnstt-server"
+wget -O $DNSDIR/dnstt-client "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/dnstt-client"
+chmod +x $DNSDIR/dnstt-server
+chmod +x $DNSDIR/dnstt-client
 
-./dnstt-server -gen-key -privkey-file server.key -pubkey-file server.pub
-cp server.key server.pub $DNSCONFIG
-cp dnstt-server $DNSDIR
-
-# BUILD DNSTT CLIENT
-cd $DNSDIR/dnstt/dnstt-client
-cp dnstt-client $DNSDIR
+cd $DNSDIR
+./dnstt-server -gen-key -privkey-file $DNSCONFIG/server.key -pubkey-file $DNSCONFIG/server.pub
 
 #Source
 echo "
@@ -997,7 +991,7 @@ curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh | bash 
   
 wget -O /usr/local/etc/xray/config.json https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/config.json
 
-sed -i "s|999999|$PORT_VLESS|g" /usr/local/etc/xray/config.json
+sed -i "s|999999|8444|g" /usr/local/etc/xray/config.json
 
 mkdir /ssl
 cp -a /etc/openvpn/easy-rsa/keys/server.crt /ssl/xray.crt
@@ -1011,7 +1005,7 @@ FLOW=$(cat /usr/local/etc/xray/config.json | jq .inbounds[0].settings.clients[0]
 WS_PATH=$(cat /usr/local/etc/xray/config.json | jq .inbounds[0].settings.fallbacks[2].path | tr -d '"')
 WS_PATH_WITHOUT_SLASH=$(echo $WS_PATH | tr -d '/')
   
-echo "vless://$UUID@$DOMAIN:$PORT?path=%2f$WS_PATH_WITHOUT_SLASH%2f&security=tls&encryption=none&host=$DOMAIN&type=ws&sni=www.pldt.com.ph#VOLLAMDEV" >> /root/.web/v2ray.txt
+echo "vless://$UUID@$DOMAIN:$PORT_VLESS?path=%2f$WS_PATH_WITHOUT_SLASH%2f&security=tls&encryption=none&host=$DOMAIN&type=ws&sni=$DOMAIN#VOLLAMDEV" >> /root/.web/v2ray.txt
   
 } &>/dev/null
 }
@@ -1099,6 +1093,10 @@ xray_ntls_port=PORT_NTLS
 slowdns_port=2222
 tcp_ssl_port=PORT_SSL
 udp_ssl_port=444
+vmess=vmess_config
+vless=vless_config
+trojan=trojan_config
+ss=ss_config
 ssh_user=azimaxus
 ssh_pass=azim.0987Aa" >> /root/.ports
 
@@ -1109,6 +1107,140 @@ sed -i "s|PORT_VLESS|$PORT_VLESS|g" /root/.ports
 sed -i "s|PORT_NTLS|$PORT_NTLS|g" /root/.ports
 
   }&>/dev/null
+}
+
+finish(){
+UUID_F=$(cat /usr/local/etc/xray/config.json 2>/dev/null | jq -r '.inbounds[0].settings.clients[0].id' 2>/dev/null)
+WS_PATH_F=$(cat /usr/local/etc/xray/config.json 2>/dev/null | jq -r '.inbounds[0].settings.fallbacks[2].path' 2>/dev/null | tr -d '/' 2>/dev/null)
+PORT_F=$(cat /usr/local/etc/xray/config.json 2>/dev/null | jq -r '.inbounds[0].port' 2>/dev/null)
+[ -z "$UUID_F" ] && UUID_F="${UUID:-unknown}"
+[ -z "$WS_PATH_F" ] && WS_PATH_F="firenet"
+[ -z "$PORT_F" ] && PORT_F="${PORT_VLESS:-443}"
+
+wget -O /root/.web/firenet_logo.png "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/firenet_logo.png" 2>/dev/null
+
+cat >/root/.web/vless_config.php <<-VLESSEOF
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>AIO Server Details</title>
+  <style>
+    :root{--bg:#0b0b0b;--card:#121212;--muted:#9aa6b2;--text:#e8eef6;--accent:#ff2b2b;--radius:12px;font-family:Inter,system-ui,sans-serif}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:linear-gradient(180deg,#070707 0%,#0f0f10 100%);color:var(--text);display:flex;justify-content:center;padding:24px}
+    .wrap{width:100%;max-width:960px}
+    header{display:flex;gap:12px;align-items:center;margin-bottom:18px}
+    .logo{width:50px;height:50px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#ff6666);display:flex;align-items:center;justify-content:center}
+    h1{margin:0;font-size:20px}
+    p.lead{margin:4px 0 0;color:var(--muted);font-size:13px}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01));border-radius:var(--radius);padding:18px;margin-bottom:14px;border:1px solid rgba(255,255,255,.04);box-shadow:0 8px 30px rgba(0,0,0,.6)}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .full{grid-column:1/-1}
+    .field{background:rgba(255,255,255,.03);border-radius:10px;padding:12px;border:1px solid rgba(255,255,255,.02)}
+    .label{color:var(--muted);font-size:12px;margin-bottom:6px;display:block}
+    .input-row{display:flex;gap:8px;align-items:center}
+    input.ro{flex:1;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.04);background:rgba(0,0,0,.35);color:var(--text);font-family:monospace;font-size:13px;outline:none}
+    .copy-btn{border:0;padding:9px 12px;border-radius:8px;background:linear-gradient(180deg,var(--accent),#cc1919);color:#fff;font-weight:700;cursor:pointer;white-space:nowrap}
+    pre.fmt{background:#0a0a0a;color:#d9d9d9;border-radius:10px;padding:12px;overflow:auto;font-family:monospace;font-size:13px;border:1px solid rgba(255,255,255,.03);margin:6px 0 0;white-space:pre-wrap}
+    .link-box{display:flex;gap:8px;align-items:center}
+    .link-text{flex:1;padding:10px;border-radius:8px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.03);font-family:monospace;font-size:13px;overflow:auto;white-space:nowrap}
+    footer{margin-top:14px;display:flex;justify-content:space-between;flex-wrap:wrap;color:var(--muted);font-size:13px}
+    a.link{color:var(--accent);text-decoration:none;font-weight:700}
+    @media(max-width:600px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"><img src="/firenet_logo.png" alt="logo" height="38"></div>
+    <div><h1>Happy Surfing!</h1><p class="lead">AIO Server Summary</p></div>
+  </header>
+
+  <section class="card" style="border:1px solid rgba(255,43,43,.25)">
+    <h2 style="font-size:15px;margin:0 0 10px;color:var(--accent)">SSH Access Credentials</h2>
+    <div class="grid">
+      <div class="field"><span class="label">SSH Username</span><div class="input-row"><input class="ro" id="u" readonly value="azimaxus"><button class="copy-btn" onclick="cp('u')">Copy</button></div></div>
+      <div class="field"><span class="label">SSH Password</span><div class="input-row"><input class="ro" id="pw" readonly value="azim.0987Aa"><button class="copy-btn" onclick="cp('pw')">Copy</button></div></div>
+      <div class="field"><span class="label">SSH Port</span><div class="input-row"><input class="ro" id="sp" readonly value="22"><button class="copy-btn" onclick="cp('sp')">Copy</button></div></div>
+      <div class="field"><span class="label">Server IP</span><div class="input-row"><input class="ro" id="sip" readonly value="${server_ip}"><button class="copy-btn" onclick="cp('sip')">Copy</button></div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 style="font-size:15px;margin:0 0 10px">VLESS Formats</h2>
+    <div class="field full">
+      <span class="label">Format — VLESS WS TLS</span>
+      <pre class="fmt" id="fmt-tls">name: Vollam-WS-TLS
+server: ${DOMAIN}
+port: ${PORT_F}
+type: vless
+uuid: ${UUID_F}
+tls: true
+skip-cert-verify: true
+servername: ${DOMAIN}
+network: ws
+udp: true
+ws-opts:
+  path: /${WS_PATH_F}/
+  headers:
+    Host: ${DOMAIN}</pre>
+      <div style="margin-top:8px"><button class="copy-btn" onclick="cpRaw('#fmt-tls')">Copy Format</button></div>
+    </div>
+    <div class="field full" style="margin-top:12px">
+      <span class="label">Format — VLESS WS Non-TLS</span>
+      <pre class="fmt" id="fmt-ntls">name: Vollam-WS-NTLS
+server: ${DOMAIN}
+port: ${PORT_NTLS}
+type: vless
+uuid: ${UUID_F}
+tls: false
+network: ws
+udp: true
+ws-opts:
+  path: /${WS_PATH_F}/
+  headers:
+    Host: ${DOMAIN}</pre>
+      <div style="margin-top:8px"><button class="copy-btn" onclick="cpRaw('#fmt-ntls')">Copy Format</button></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 style="font-size:15px;margin:0 0 10px">VLESS Links</h2>
+    <div class="field full" style="margin-bottom:8px">
+      <span class="label">Link TLS</span>
+      <div class="link-box" style="margin-top:6px">
+        <div id="link-tls" class="link-text">vless://${UUID_F}@${DOMAIN}:${PORT_F}?path=%2F${WS_PATH_F}%2F&security=tls&encryption=none&host=${DOMAIN}&type=ws&sni=${DOMAIN}#VOLLAM-TLS</div>
+        <button class="copy-btn" onclick="cpEl('link-tls')">Copy</button>
+      </div>
+    </div>
+    <div class="field full">
+      <span class="label">Link Non-TLS</span>
+      <div class="link-box" style="margin-top:6px">
+        <div id="link-ntls" class="link-text">vless://${UUID_F}@${DOMAIN}:${PORT_NTLS}?path=%2F${WS_PATH_F}%2F&security=none&encryption=none&host=${DOMAIN}&type=ws#VOLLAM-NTLS</div>
+        <button class="copy-btn" onclick="cpEl('link-ntls')">Copy</button>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>FB: <a class="link" href="https://www.facebook.com/vollams" target="_blank">FIRENET</a></div>
+    <div>WhatsApp: <a class="link" href="https://wa.me/+966598126771" target="_blank">VOLLAM DEVELOPER</a></div>
+  </footer>
+</div>
+<script>
+function cp(id){var el=document.getElementById(id);if(el){navigator.clipboard&&navigator.clipboard.writeText(el.value)}}
+function cpEl(id){var el=document.getElementById(id);if(el){navigator.clipboard&&navigator.clipboard.writeText(el.textContent.trim())}}
+function cpRaw(sel){var el=document.querySelector(sel);if(el){navigator.clipboard&&navigator.clipboard.writeText(el.textContent.trim())}}
+</script>
+</body>
+</html>
+VLESSEOF
+
+cp /root/.web/vless_config.php /root/.web/vmess_config.php
+cp /root/.web/vless_config.php /root/.web/trojan_config.php
+cp /root/.web/vless_config.php /root/.web/ss_config.php
 }
 
 start_service () {
@@ -1154,4 +1286,5 @@ install_xray
 install_firewall_kvm
 install_stunnel
 install_rclocal
+finish
 start_service
