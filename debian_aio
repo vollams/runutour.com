@@ -49,8 +49,8 @@ OBFS='vollam';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=mvc6.runutour.info
-NS=m0gw.runutour.info
+DOMAIN=yvvz.runutour.info
+NS=fezj.runutour.info
 PORT_VLESS='443';
 PORT_NTLS='8082';
 timedatectl set-timezone Asia/Riyadh
@@ -572,6 +572,27 @@ enL3UGT+BhRAPiA1I5CcG29RqjCzQoaCNg==
 mkdir -p /var/run/stunnel4
 chown stunnel4:stunnel4 /var/run/stunnel4 2>/dev/null || true
 
+cat > /etc/systemd/system/stunnel4.service << 'STEOF'
+[Unit]
+Description=SSL tunneling proxy server
+After=network.target
+
+[Service]
+Type=forking
+PIDFile=/var/run/stunnel4/stunnel4.pid
+ExecStartPre=/bin/mkdir -p /var/run/stunnel4
+ExecStartPre=-/bin/rm -f /var/run/stunnel4/stunnel4.pid
+ExecStart=/usr/bin/stunnel4 /etc/stunnel/stunnel.conf
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+STEOF
+
+systemctl daemon-reload
+systemctl enable stunnel4
+
 echo "pid = /var/run/stunnel4/stunnel4.pid
 debug = 0
 output = /tmp/stunnel.log
@@ -1087,7 +1108,7 @@ echo "vless://$UUID@$DOMAIN:$PORT_VLESS?path=%2f$WS_PATH_WITHOUT_SLASH%2f&securi
 
 install_rclocal(){
   {
-    sudo systemctl restart stunnel4
+    systemctl start stunnel4
     sudo systemctl enable xray
     sudo systemctl restart xray
     sudo systemctl restart hysteria-server
@@ -1115,7 +1136,7 @@ service ufw stop
 iptables-restore < /etc/iptables_rules.v4
 ip6tables-restore < /etc/iptables_rules.v6
 sysctl -p
-service stunnel4 restart
+systemctl restart stunnel4
 systemctl restart openvpn@server.service
 systemctl restart openvpn@server2.service
 systemctl restart hysteria-server.service
