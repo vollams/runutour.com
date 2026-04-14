@@ -49,8 +49,8 @@ OBFS='vollam';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=mfsb.ruzain.com
-NS=h3sw.ruzain.com
+DOMAIN=pddq.ruzain.com
+NS=tfwb.ruzain.com
 PORT_VLESS='8444';
 PORT_NTLS='8080';
 ﻿timedatectl set-timezone Asia/Riyadh
@@ -128,7 +128,7 @@ fi
 
 wget 'https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/n_monitor' -O /etc/.monitor
 chmod +x /etc/.monitor
-echo "mysql --ssl-verify-server-cert=OFF -u \$DB_USER -p\$DB_PASS -D \$DB_NAME -h \$DB_HOST --default-character-set=utf8mb4 -e \"UPDATE server_list SET status=1, xray_status='active' WHERE server_ip='\$ip'\" 2>/dev/null" >> /etc/.monitor
+echo ". /etc/.db-base 2>/dev/null; mysql --ssl-verify-server-cert=OFF -u \"\$USER\" -p\"\$PASS\" -D \"\$DBNAME\" -h \"\$HOST\" --default-character-set=utf8mb4 -e \"UPDATE server_list SET status=1, xray_status='active' WHERE server_ip='\$ip'\" 2>/dev/null" >> /etc/.monitor
 }
 
 install_squid(){
