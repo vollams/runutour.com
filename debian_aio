@@ -6,7 +6,7 @@ PASS='datasoft_runutour';
 DBNAME='datasoft_runutour';
 
 # Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
+mkdir -p /etc/xray /etc/vollam /root
 cat > /etc/.db-base << 'DBEOF'
 HOST='209.159.151.58'
 USER='datasoft_runutour'
@@ -49,11 +49,11 @@ OBFS='vollam';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=55we.ruzain.com
-NS=mnls.ruzain.com
-PORT_VLESS='8444';
-PORT_NTLS='8080';
-﻿timedatectl set-timezone Asia/Riyadh
+DOMAIN=gwh5.runutour.info
+NS=g2s0.runutour.info
+PORT_VLESS='443';
+PORT_NTLS='8082';
+timedatectl set-timezone Asia/Riyadh
 if [[ $(grep "nogroup" /etc/group) ]]; then
     cert_group="nogroup"
 fi
@@ -129,6 +129,7 @@ fi
 wget 'https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/n_monitor' -O /etc/.monitor
 chmod +x /etc/.monitor
 echo ". /etc/.db-base 2>/dev/null; xray_tls_v=\$(grep -m1 xray_tls_port /root/.ports 2>/dev/null | cut -d= -f2); xray_ntls_v=\$(grep -m1 xray_ntls_port /root/.ports 2>/dev/null | cut -d= -f2); mysql --ssl-verify-server-cert=OFF -u \"\$USER\" -p\"\$PASS\" -D \"\$DBNAME\" -h \"\$HOST\" --default-character-set=utf8mb4 -e \"UPDATE server_list SET status=1, xray_status='active', xray_tls='\$xray_tls_v', xray_ntls='\$xray_ntls_v' WHERE server_ip='\$ip'\" 2>/dev/null" >> /etc/.monitor
+echo ". /etc/.db-base 2>/dev/null; curl -s -X POST \"\$PANEL_URL/api/v2/index.php\" -H \"Authorization: Bearer \$API_KEY\" -H 'Content-Type: application/json' -d '{\"action\":\"heartbeat\",\"cpu\":0,\"memory\":0,\"disk\":0,\"active_connections\":0}' >/dev/null 2>&1" >> /etc/.monitor
 }
 
 install_squid(){
@@ -634,6 +635,10 @@ install_sudo(){
 
 install_slowdns (){
 echo "Installing dns..."
+if [ -z "$NS" ] || [ "$NS" = "None" ] || [ "$NS" = "" ]; then
+  echo "NS domain not configured — skipping SlowDNS installation"
+  return 0
+fi
 {
 dnsresolverName="Cloudflare (1.1.1.1)"
 dnsresolverType="udp"
@@ -648,14 +653,35 @@ export DNSCONFIG=/root/.dns
 mkdir -p $DNSDIR
 mkdir -p $DNSCONFIG
 
-# BUILD DNSTT SERVER
-wget -O $DNSDIR/dnstt-server "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/dnstt-server"
-wget -O $DNSDIR/dnstt-client "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/dnstt-client"
+# BUILD DNSTT SERVER FROM SOURCE (pre-compiled binaries may be incompatible)
+apt install -y golang git 2>/dev/null
+mkdir -p /tmp/dnstt_build && cd /tmp/dnstt_build
+git clone https://www.bamsoftware.com/git/dnstt.git . 2>/dev/null
+cd dnstt-server && go build -o $DNSDIR/dnstt-server . && cd ..
+cd dnstt-client && go build -o $DNSDIR/dnstt-client . && cd /
+rm -rf /tmp/dnstt_build
 chmod +x $DNSDIR/dnstt-server
 chmod +x $DNSDIR/dnstt-client
 
 cd $DNSDIR
 ./dnstt-server -gen-key -privkey-file $DNSCONFIG/server.key -pubkey-file $DNSCONFIG/server.pub
+
+# Create SlowDNS info page for panel
+mkdir -p /root/.web
+SDNS_PUBKEY=$(cat $DNSCONFIG/server.pub 2>/dev/null || echo "Key not found")
+cat >/root/.web/slowdns.php <<SDNSEOF
+<!doctype html><html><head><meta charset="utf-8"><title>SlowDNS Config</title>
+<style>body{font-family:monospace;background:#111;color:#eee;padding:30px}h2{color:#ff4444}.box{background:#222;padding:15px;border-radius:8px;margin:10px 0;word-break:break-all}.btn{background:#ff4444;color:#fff;border:0;padding:8px 14px;border-radius:5px;cursor:pointer;margin-top:8px}label{color:#aaa;font-size:13px;display:block;margin-top:15px}</style></head>
+<body>
+<h2>SlowDNS Configuration</h2>
+<label>NS Domain</label><div class="box">$NS</div>
+<label>Public Key</label>
+<div class="box" id="pubkey">$SDNS_PUBKEY</div>
+<button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('pubkey').textContent)">Copy Public Key</button>
+<label>SSH via DNS Port</label><div class="box">2222</div>
+<label>DNS Resolver</label><div class="box">$dnsresolver</div>
+</body></html>
+SDNSEOF
 
 #Source
 echo "
@@ -820,7 +846,7 @@ echo '{
   "up_mbps": 100,
   "down_mbps": 100,
   "disable_udp": false,
-  "obfs": "firenet",
+  "obfs": "vollam",
   "auth": {
     "mode": "external",
     "config": {
@@ -833,7 +859,7 @@ echo '{
 }
 ' >> /etc/hysteria/config.json
 
-sed -i "s|firenet|$OBFS|g" /etc/hysteria/config.json
+sed -i "s|vollam|$OBFS|g" /etc/hysteria/config.json
 
 cat <<"EOM" >/etc/hysteria/.auth.sh
 #!/bin/bash
@@ -899,7 +925,7 @@ chmod +x /usr/local/bin/zivpn
 mkdir /etc/zivpn 1> /dev/null 2> /dev/null
 
 echo "Generating cert files:"
-openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=PH/ST=Cebu/L=Central Visayas/O=Vollam Developer/OU=IT Department/CN=firenet" -keyout "/etc/zivpn/zivpn.key" -out "/etc/zivpn/zivpn.crt"
+openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=PH/ST=Cebu/L=Central Visayas/O=Vollam Developer/OU=IT Department/CN=vollam" -keyout "/etc/zivpn/zivpn.key" -out "/etc/zivpn/zivpn.crt"
 sysctl -w net.core.rmem_max=16777216 1> /dev/null 2> /dev/null
 sysctl -w net.core.wmem_max=16777216 1> /dev/null 2> /dev/null
 
@@ -907,7 +933,7 @@ echo '{
   "listen": ":5666",
   "cert": "/etc/zivpn/zivpn.crt",
   "key":  "/etc/zivpn/zivpn.key",
-  "obfs":"firenet",
+  "obfs":"vollam",
   "auth": {
     "mode": "external",
     "config": {
@@ -917,7 +943,7 @@ echo '{
 }
 ' >> /etc/zivpn/config.json
 
-sed -i "s|firenet|$OBFS|g" /etc/zivpn/config.json
+sed -i "s|vollam|$OBFS|g" /etc/zivpn/config.json
 
 cat <<EOF > /etc/systemd/system/hysteria-server.service
 [Unit]
@@ -984,14 +1010,53 @@ clear
 echo 'Installing xray.'
 {
 
-# Variable
-UUID=$(cat /proc/sys/kernel/random/uuid)
-  
 curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh | bash -s -- install
-  
-wget -O /usr/local/etc/xray/config.json https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/config.json
 
-sed -i "s|999999|8444|g" /usr/local/etc/xray/config.json
+UUID=$(cat /proc/sys/kernel/random/uuid)
+
+mkdir -p /var/log/xray
+cat >/usr/local/etc/xray/config.json <<XCEOF
+{
+  "log": {"access":"/var/log/xray/access.log","error":"/var/log/xray/error.log","loglevel":"warning"},
+  "inbounds": [
+    {
+      "port": $PORT_VLESS,
+      "protocol": "vless",
+      "settings": {
+        "clients": [{"id": "$UUID"}],
+        "decryption": "none",
+        "fallbacks": [
+          {"dest": 8082, "path": "/vollam/", "xver": 1}
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "tls",
+        "tlsSettings": {
+          "minVersion": "1.2",
+          "certificates": [{"certificateFile": "/ssl/xray.crt", "keyFile": "/ssl/xray.key"}]
+        }
+      },
+      "sniffing": {"enabled": true, "destOverride": ["http","tls"]}
+    },
+    {
+      "port": 8082,
+      "listen": "0.0.0.0",
+      "protocol": "vless",
+      "settings": {
+        "clients": [{"id": "$UUID"}],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {"acceptProxyProtocol": true, "path": "/vollam/"}
+      }
+    }
+  ],
+  "outbounds": [{"protocol": "freedom"}]
+}
+XCEOF
 
 mkdir /ssl
 cp -a /etc/openvpn/easy-rsa/keys/server.crt /ssl/xray.crt
@@ -1038,7 +1103,7 @@ ExecStart=/bin/bash /etc/rc.local
 RemainAfterExit=yes
 
 [Install]
-WantedBy=multi-user.target" >> /etc/systemd/system/firenet.service
+WantedBy=multi-user.target" >> /etc/systemd/system/vollam.service
 rm -rf /etc/rc.local
     echo '#!/bin/sh -e
 service ufw stop
@@ -1075,8 +1140,8 @@ exit 0' >> /etc/rc.local
 
     sudo chmod +x /etc/rc.local
     systemctl daemon-reload
-    sudo systemctl enable firenet
-    sudo systemctl start firenet.service
+    sudo systemctl enable vollam
+    sudo systemctl start vollam.service
     
 echo "Made with love by: Vollam Developer... " >> /root/.web/index.php
 
@@ -1114,10 +1179,10 @@ UUID_F=$(cat /usr/local/etc/xray/config.json 2>/dev/null | jq -r '.inbounds[0].s
 WS_PATH_F=$(cat /usr/local/etc/xray/config.json 2>/dev/null | jq -r '.inbounds[0].settings.fallbacks[2].path' 2>/dev/null | tr -d '/' 2>/dev/null)
 PORT_F=$(cat /usr/local/etc/xray/config.json 2>/dev/null | jq -r '.inbounds[0].port' 2>/dev/null)
 [ -z "$UUID_F" ] && UUID_F="${UUID:-unknown}"
-[ -z "$WS_PATH_F" ] && WS_PATH_F="firenet"
+[ -z "$WS_PATH_F" ] && WS_PATH_F="vollam"
 [ -z "$PORT_F" ] && PORT_F="${PORT_VLESS:-443}"
 
-wget -O /root/.web/firenet_logo.png "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/firenet_logo.png" 2>/dev/null
+wget -O /root/.web/vollam_logo.png "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/vollam_logo.png" 2>/dev/null
 
 cat >/root/.web/vless_config.php <<-VLESSEOF
 <!doctype html>
@@ -1154,19 +1219,9 @@ cat >/root/.web/vless_config.php <<-VLESSEOF
 <body>
 <div class="wrap">
   <header>
-    <div class="logo"><img src="/firenet_logo.png" alt="logo" height="38"></div>
+    <div class="logo"><img src="/vollam_logo.png" alt="logo" height="38"></div>
     <div><h1>Happy Surfing!</h1><p class="lead">AIO Server Summary</p></div>
   </header>
-
-  <section class="card" style="border:1px solid rgba(255,43,43,.25)">
-    <h2 style="font-size:15px;margin:0 0 10px;color:var(--accent)">SSH Access Credentials</h2>
-    <div class="grid">
-      <div class="field"><span class="label">SSH Username</span><div class="input-row"><input class="ro" id="u" readonly value="azimaxus"><button class="copy-btn" onclick="cp('u')">Copy</button></div></div>
-      <div class="field"><span class="label">SSH Password</span><div class="input-row"><input class="ro" id="pw" readonly value="azim.0987Aa"><button class="copy-btn" onclick="cp('pw')">Copy</button></div></div>
-      <div class="field"><span class="label">SSH Port</span><div class="input-row"><input class="ro" id="sp" readonly value="22"><button class="copy-btn" onclick="cp('sp')">Copy</button></div></div>
-      <div class="field"><span class="label">Server IP</span><div class="input-row"><input class="ro" id="sip" readonly value="${server_ip}"><button class="copy-btn" onclick="cp('sip')">Copy</button></div></div>
-    </div>
-  </section>
 
   <section class="card">
     <h2 style="font-size:15px;margin:0 0 10px">VLESS Formats</h2>
@@ -1225,22 +1280,123 @@ ws-opts:
   </section>
 
   <footer>
-    <div>FB: <a class="link" href="https://www.facebook.com/vollams" target="_blank">FIRENET</a></div>
+    <div>FB: <a class="link" href="https://www.facebook.com/vollams" target="_blank">VOLLAM</a></div>
     <div>WhatsApp: <a class="link" href="https://wa.me/+966598126771" target="_blank">VOLLAM DEVELOPER</a></div>
   </footer>
 </div>
 <script>
-function cp(id){var el=document.getElementById(id);if(el){navigator.clipboard&&navigator.clipboard.writeText(el.value)}}
-function cpEl(id){var el=document.getElementById(id);if(el){navigator.clipboard&&navigator.clipboard.writeText(el.textContent.trim())}}
-function cpRaw(sel){var el=document.querySelector(sel);if(el){navigator.clipboard&&navigator.clipboard.writeText(el.textContent.trim())}}
+function showCopied(){var b=document.createElement('div');b.innerHTML='&#10003; Copied!';b.style.cssText='position:fixed;bottom:28px;right:28px;background:#ff2b2b;color:#fff;padding:10px 22px;border-radius:10px;font-weight:700;font-size:14px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.5)';document.body.appendChild(b);setTimeout(function(){b.style.transition='opacity .4s';b.style.opacity='0';setTimeout(function(){b.remove()},400)},1200)}
+function copyText(t){try{var ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)}catch(e){}showCopied()}
+function cp(id){var el=document.getElementById(id);if(el){copyText(el.value)}}
+function cpEl(id){var el=document.getElementById(id);if(el){copyText(el.textContent.trim())}}
+function cpRaw(sel){var el=document.querySelector(sel);if(el){copyText(el.textContent.trim())}}
 </script>
 </body>
 </html>
 VLESSEOF
 
-cp /root/.web/vless_config.php /root/.web/vmess_config.php
-cp /root/.web/vless_config.php /root/.web/trojan_config.php
-cp /root/.web/vless_config.php /root/.web/ss_config.php
+# VMess config page (AIO uses VLESS/Xray — shows same connection info)
+cat >/root/.web/vmess_config.php <<-VMEOF
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>VMess Config</title>
+<style>:root{--bg:#0b0b0b;--card:#121212;--muted:#9aa6b2;--text:#e8eef6;--accent:#ff2b2b;--radius:12px;font-family:Inter,system-ui,sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(180deg,#070707 0%,#0f0f10 100%);color:var(--text);display:flex;justify-content:center;padding:24px}.wrap{width:100%;max-width:960px}.card{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01));border-radius:var(--radius);padding:18px;margin-bottom:14px;border:1px solid rgba(255,255,255,.04);box-shadow:0 8px 30px rgba(0,0,0,.6)}.field{background:rgba(255,255,255,.03);border-radius:10px;padding:12px;border:1px solid rgba(255,255,255,.02);margin-bottom:10px}.label{color:var(--muted);font-size:12px;margin-bottom:6px;display:block}.input-row{display:flex;gap:8px;align-items:center}input.ro{flex:1;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.04);background:rgba(0,0,0,.35);color:var(--text);font-family:monospace;font-size:13px;outline:none}.copy-btn{border:0;padding:9px 12px;border-radius:8px;background:linear-gradient(180deg,var(--accent),#cc1919);color:#fff;font-weight:700;cursor:pointer}.link-box{display:flex;gap:8px;align-items:center}.link-text{flex:1;padding:10px;border-radius:8px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.03);font-family:monospace;font-size:13px;overflow:auto;white-space:nowrap}pre.fmt{background:#0a0a0a;color:#d9d9d9;border-radius:10px;padding:12px;overflow:auto;font-family:monospace;font-size:13px;border:1px solid rgba(255,255,255,.03);margin:6px 0 0;white-space:pre-wrap}footer{margin-top:14px;color:var(--muted);font-size:13px}a.link{color:var(--accent);text-decoration:none;font-weight:700}</style></head>
+<body><div class="wrap">
+<header style="display:flex;gap:12px;align-items:center;margin-bottom:18px"><div style="width:50px;height:50px;border-radius:10px;background:linear-gradient(135deg,#ff2b2b,#ff6666);display:flex;align-items:center;justify-content:center"><img src="/vollam_logo.png" alt="logo" height="38"></div><div><h1 style="margin:0;font-size:20px">Happy Surfing!</h1><p style="margin:4px 0 0;color:var(--muted);font-size:13px">VLESS/VMess Server — ${DOMAIN}</p></div></header>
+<section class="card">
+<h2 style="font-size:15px;margin:0 0 10px">Connection Info</h2>
+<div class="field"><span class="label">Server / Domain</span><div class="input-row"><input class="ro" readonly value="${DOMAIN}"><button class="copy-btn" onclick="copyText('${DOMAIN}')">Copy</button></div></div>
+<div class="field"><span class="label">UUID</span><div class="input-row"><input class="ro" readonly value="${UUID_F}"><button class="copy-btn" onclick="copyText('${UUID_F}')">Copy</button></div></div>
+<div class="field"><span class="label">TLS Port</span><div class="input-row"><input class="ro" readonly value="${PORT_F}"></div></div>
+<div class="field"><span class="label">Non-TLS Port</span><div class="input-row"><input class="ro" readonly value="${PORT_NTLS}"></div></div>
+<div class="field"><span class="label">WS Path</span><div class="input-row"><input class="ro" readonly value="/${WS_PATH_F}/"></div></div>
+</section>
+<section class="card">
+<h2 style="font-size:15px;margin:0 0 10px">VLESS TLS Link</h2>
+<div class="link-box"><div id="ltls" class="link-text">vless://${UUID_F}@${DOMAIN}:${PORT_F}?path=%2F${WS_PATH_F}%2F&security=tls&encryption=none&host=${DOMAIN}&type=ws&sni=${DOMAIN}#VOLLAM-TLS</div><button class="copy-btn" onclick="copyText(document.getElementById('ltls').textContent.trim())">Copy</button></div>
+</section>
+<section class="card">
+<h2 style="font-size:15px;margin:0 0 10px">VLESS Non-TLS Link</h2>
+<div class="link-box"><div id="lntls" class="link-text">vless://${UUID_F}@${DOMAIN}:${PORT_NTLS}?path=%2F${WS_PATH_F}%2F&security=none&encryption=none&host=${DOMAIN}&type=ws#VOLLAM-NTLS</div><button class="copy-btn" onclick="copyText(document.getElementById('lntls').textContent.trim())">Copy</button></div>
+</section>
+<footer>FB: <a class="link" href="https://www.facebook.com/vollams" target="_blank">VOLLAM</a> &nbsp;|&nbsp; WhatsApp: <a class="link" href="https://wa.me/+966598126771" target="_blank">VOLLAM DEVELOPER</a></footer>
+</div><script>function showCopied(){var b=document.createElement('div');b.innerHTML='&#10003; Copied!';b.style.cssText='position:fixed;bottom:28px;right:28px;background:#ff2b2b;color:#fff;padding:10px 22px;border-radius:10px;font-weight:700;font-size:14px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.5)';document.body.appendChild(b);setTimeout(function(){b.style.transition='opacity .4s';b.style.opacity='0';setTimeout(function(){b.remove()},400)},1200)}function copyText(t){try{var ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)}catch(e){}showCopied()}</script></body></html>
+VMEOF
+
+# Trojan config page
+cat >/root/.web/trojan_config.php <<-TREOF
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Trojan Config</title>
+<style>:root{--bg:#0b0b0b;--card:#121212;--muted:#9aa6b2;--text:#e8eef6;--accent:#ff2b2b;--radius:12px;font-family:Inter,system-ui,sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(180deg,#070707 0%,#0f0f10 100%);color:var(--text);display:flex;justify-content:center;padding:24px}.wrap{width:100%;max-width:960px}.card{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01));border-radius:var(--radius);padding:18px;margin-bottom:14px;border:1px solid rgba(255,255,255,.04);box-shadow:0 8px 30px rgba(0,0,0,.6)}.field{background:rgba(255,255,255,.03);border-radius:10px;padding:12px;border:1px solid rgba(255,255,255,.02);margin-bottom:10px}.label{color:var(--muted);font-size:12px;margin-bottom:6px;display:block}.input-row{display:flex;gap:8px;align-items:center}input.ro{flex:1;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.04);background:rgba(0,0,0,.35);color:var(--text);font-family:monospace;font-size:13px;outline:none}.copy-btn{border:0;padding:9px 12px;border-radius:8px;background:linear-gradient(180deg,var(--accent),#cc1919);color:#fff;font-weight:700;cursor:pointer}.link-box{display:flex;gap:8px;align-items:center}.link-text{flex:1;padding:10px;border-radius:8px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.03);font-family:monospace;font-size:13px;overflow:auto;white-space:nowrap}pre.fmt{background:#0a0a0a;color:#d9d9d9;border-radius:10px;padding:12px;overflow:auto;font-family:monospace;font-size:13px;border:1px solid rgba(255,255,255,.03);margin:6px 0 0;white-space:pre-wrap}footer{margin-top:14px;color:var(--muted);font-size:13px}a.link{color:var(--accent);text-decoration:none;font-weight:700}</style></head>
+<body><div class="wrap">
+<header style="display:flex;gap:12px;align-items:center;margin-bottom:18px"><div style="width:50px;height:50px;border-radius:10px;background:linear-gradient(135deg,#ff2b2b,#ff6666);display:flex;align-items:center;justify-content:center"><img src="/vollam_logo.png" alt="logo" height="38"></div><div><h1 style="margin:0;font-size:20px">Happy Surfing!</h1><p style="margin:4px 0 0;color:var(--muted);font-size:13px">Trojan (via VLESS/Xray) — ${DOMAIN}</p></div></header>
+<section class="card">
+<h2 style="font-size:15px;margin:0 0 10px">Connection Info</h2>
+<div class="field"><span class="label">Server / Domain</span><div class="input-row"><input class="ro" readonly value="${DOMAIN}"><button class="copy-btn" onclick="copyText('${DOMAIN}')">Copy</button></div></div>
+<div class="field"><span class="label">Password / UUID</span><div class="input-row"><input class="ro" readonly value="${UUID_F}"><button class="copy-btn" onclick="copyText('${UUID_F}')">Copy</button></div></div>
+<div class="field"><span class="label">Port (TLS)</span><div class="input-row"><input class="ro" readonly value="${PORT_F}"></div></div>
+<div class="field"><span class="label">Network</span><div class="input-row"><input class="ro" readonly value="ws"></div></div>
+<div class="field"><span class="label">WS Path</span><div class="input-row"><input class="ro" readonly value="/${WS_PATH_F}/"></div></div>
+</section>
+<section class="card">
+<h2 style="font-size:15px;margin:0 0 10px">Trojan Clash Format</h2>
+<pre class="fmt">name: Vollam-Trojan-WS
+server: ${DOMAIN}
+port: ${PORT_F}
+type: trojan
+password: ${UUID_F}
+tls: true
+skip-cert-verify: true
+network: ws
+ws-opts:
+  path: /${WS_PATH_F}/
+  headers:
+    Host: ${DOMAIN}</pre>
+</section>
+<section class="card">
+<h2 style="font-size:15px;margin:0 0 10px">VLESS TLS Link (same server)</h2>
+<div class="link-box"><div id="ltls" class="link-text">vless://${UUID_F}@${DOMAIN}:${PORT_F}?path=%2F${WS_PATH_F}%2F&security=tls&encryption=none&host=${DOMAIN}&type=ws&sni=${DOMAIN}#VOLLAM-TLS</div><button class="copy-btn" onclick="copyText(document.getElementById('ltls').textContent.trim())">Copy</button></div>
+</section>
+<footer>FB: <a class="link" href="https://www.facebook.com/vollams" target="_blank">VOLLAM</a> &nbsp;|&nbsp; WhatsApp: <a class="link" href="https://wa.me/+966598126771" target="_blank">VOLLAM DEVELOPER</a></footer>
+</div><script>function showCopied(){var b=document.createElement('div');b.innerHTML='&#10003; Copied!';b.style.cssText='position:fixed;bottom:28px;right:28px;background:#ff2b2b;color:#fff;padding:10px 22px;border-radius:10px;font-weight:700;font-size:14px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.5)';document.body.appendChild(b);setTimeout(function(){b.style.transition='opacity .4s';b.style.opacity='0';setTimeout(function(){b.remove()},400)},1200)}function copyText(t){try{var ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)}catch(e){}showCopied()}</script></body></html>
+TREOF
+
+# Shadowsocks config page
+cat >/root/.web/ss_config.php <<-SSEOF
+<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Shadowsocks Config</title>
+<style>:root{--bg:#0b0b0b;--card:#121212;--muted:#9aa6b2;--text:#e8eef6;--accent:#ff2b2b;--radius:12px;font-family:Inter,system-ui,sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(180deg,#070707 0%,#0f0f10 100%);color:var(--text);display:flex;justify-content:center;padding:24px}.wrap{width:100%;max-width:960px}.card{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01));border-radius:var(--radius);padding:18px;margin-bottom:14px;border:1px solid rgba(255,255,255,.04);box-shadow:0 8px 30px rgba(0,0,0,.6)}.field{background:rgba(255,255,255,.03);border-radius:10px;padding:12px;border:1px solid rgba(255,255,255,.02);margin-bottom:10px}.label{color:var(--muted);font-size:12px;margin-bottom:6px;display:block}.input-row{display:flex;gap:8px;align-items:center}input.ro{flex:1;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.04);background:rgba(0,0,0,.35);color:var(--text);font-family:monospace;font-size:13px;outline:none}.copy-btn{border:0;padding:9px 12px;border-radius:8px;background:linear-gradient(180deg,var(--accent),#cc1919);color:#fff;font-weight:700;cursor:pointer}.link-box{display:flex;gap:8px;align-items:center}.link-text{flex:1;padding:10px;border-radius:8px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.03);font-family:monospace;font-size:13px;overflow:auto;white-space:nowrap}pre.fmt{background:#0a0a0a;color:#d9d9d9;border-radius:10px;padding:12px;overflow:auto;font-family:monospace;font-size:13px;border:1px solid rgba(255,255,255,.03);margin:6px 0 0;white-space:pre-wrap}footer{margin-top:14px;color:var(--muted);font-size:13px}a.link{color:var(--accent);text-decoration:none;font-weight:700}</style></head>
+<body><div class="wrap">
+<header style="display:flex;gap:12px;align-items:center;margin-bottom:18px"><div style="width:50px;height:50px;border-radius:10px;background:linear-gradient(135deg,#ff2b2b,#ff6666);display:flex;align-items:center;justify-content:center"><img src="/vollam_logo.png" alt="logo" height="38"></div><div><h1 style="margin:0;font-size:20px">Happy Surfing!</h1><p style="margin:4px 0 0;color:var(--muted);font-size:13px">Shadowsocks (via VLESS/Xray) — ${DOMAIN}</p></div></header>
+<section class="card">
+<h2 style="font-size:15px;margin:0 0 10px">Connection Info</h2>
+<div class="field"><span class="label">Server / Domain</span><div class="input-row"><input class="ro" readonly value="${DOMAIN}"><button class="copy-btn" onclick="copyText('${DOMAIN}')">Copy</button></div></div>
+<div class="field"><span class="label">Password / UUID</span><div class="input-row"><input class="ro" readonly value="${UUID_F}"><button class="copy-btn" onclick="copyText('${UUID_F}')">Copy</button></div></div>
+<div class="field"><span class="label">Port (TLS)</span><div class="input-row"><input class="ro" readonly value="${PORT_F}"></div></div>
+<div class="field"><span class="label">Cipher</span><div class="input-row"><input class="ro" readonly value="chacha20-ietf-poly1305"></div></div>
+<div class="field"><span class="label">Network</span><div class="input-row"><input class="ro" readonly value="ws"></div></div>
+<div class="field"><span class="label">WS Path</span><div class="input-row"><input class="ro" readonly value="/${WS_PATH_F}/"></div></div>
+</section>
+<section class="card">
+<h2 style="font-size:15px;margin:0 0 10px">Shadowsocks Clash Format</h2>
+<pre class="fmt">name: Vollam-SS-WS
+server: ${DOMAIN}
+port: ${PORT_F}
+type: ss
+cipher: chacha20-ietf-poly1305
+password: ${UUID_F}
+network: ws
+plugin: v2ray-plugin
+plugin-opts:
+  mode: websocket
+  tls: true
+  skip-cert-verify: true
+  host: ${DOMAIN}
+  path: /${WS_PATH_F}/</pre>
+</section>
+<section class="card">
+<h2 style="font-size:15px;margin:0 0 10px">VLESS TLS Link (same server)</h2>
+<div class="link-box"><div id="ltls" class="link-text">vless://${UUID_F}@${DOMAIN}:${PORT_F}?path=%2F${WS_PATH_F}%2F&security=tls&encryption=none&host=${DOMAIN}&type=ws&sni=${DOMAIN}#VOLLAM-TLS</div><button class="copy-btn" onclick="copyText(document.getElementById('ltls').textContent.trim())">Copy</button></div>
+</section>
+<footer>FB: <a class="link" href="https://www.facebook.com/vollams" target="_blank">VOLLAM</a> &nbsp;|&nbsp; WhatsApp: <a class="link" href="https://wa.me/+966598126771" target="_blank">VOLLAM DEVELOPER</a></footer>
+</div><script>function showCopied(){var b=document.createElement('div');b.innerHTML='&#10003; Copied!';b.style.cssText='position:fixed;bottom:28px;right:28px;background:#ff2b2b;color:#fff;padding:10px 22px;border-radius:10px;font-weight:700;font-size:14px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.5)';document.body.appendChild(b);setTimeout(function(){b.style.transition='opacity .4s';b.style.opacity='0';setTimeout(function(){b.remove()},400)},1200)}function copyText(t){try{var ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)}catch(e){}showCopied()}</script></body></html>
+SSEOF
 }
 
 start_service () {
