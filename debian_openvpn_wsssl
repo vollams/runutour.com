@@ -6,13 +6,13 @@ PASS='datasoft_runutour';
 DBNAME='datasoft_runutour';
 
 # Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
+mkdir -p /etc/xray /etc/vollam /root
 cat > /etc/.db-base << 'DBEOF'
 HOST='209.159.151.58'
 USER='datasoft_runutour'
 PASS='datasoft_runutour'
 DBNAME='datasoft_runutour'
-API_KEY='srv_6dd744cf14fee6b843739632ecb9731441dd207b54a8ac75a13043186df00892'
+API_KEY='fZPG'
 PANEL_URL='https://runutour.com'
 DB='datasoft_runutour'
 DBEOF
@@ -47,7 +47,7 @@ PORT_UDP='1194';
 PORT_SSL='443';
 OBFS='vollam';
 HYSTERIA_TYPE='default';
-﻿timedatectl set-timezone Asia/Riyadh
+timedatectl set-timezone Asia/Riyadh
 install_require () {
 clear
 echo 'Installing dependencies.'
@@ -522,8 +522,8 @@ timestamp="$(date +'%FT%TZ')"
 
 ##set status online to user connected
 bandwidth_check=`mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST --skip-column-name -e "SELECT bandwidth_logs.username FROM bandwidth_logs WHERE bandwidth_logs.username='$common_name' AND bandwidth_logs.status='online'"`
-if [ "$bandwidth_check" == 1 ]; then
-mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE bandwith_logs SET server_ip='$trusted_ip', server_port='$trusted_port', timestamp='$timestamp', ipaddress='$trusted_ip:$trusted_port', username='$common_name', time_in='$tm', since_connected='$time_ascii', bytes_received='$bytes_received', bytes_sent='$bytes_sent' WHERE username='$common_name' AND status='online' AND server_port='$trusted_port' "
+if [ -n "$bandwidth_check" ]; then
+mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE bandwidth_logs SET server_ip='$trusted_ip', server_port='$trusted_port', timestamp='$timestamp', ipaddress='$trusted_ip:$trusted_port', username='$common_name', time_in='$tm', since_connected='$time_ascii', bytes_received='$bytes_received', bytes_sent='$bytes_sent' WHERE username='$common_name' AND status='online' AND server_port='$trusted_port' "
 mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE users SET is_connected='1', device_connected='1', active_address='$server_ip', active_date='$datenow' WHERE user_name='$common_name' "
 else
 mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "INSERT INTO bandwidth_logs (server_ip, server_port, timestamp, ipaddress, since_connected, username, bytes_received, bytes_sent, time_in, status, time) VALUES ('$trusted_ip','$trusted_port','$timestamp','$trusted_ip:$trusted_port','$time_ascii','$common_name','$bytes_received','$bytes_sent','$dt','online','$tm') "
@@ -543,7 +543,7 @@ dt="$(date +'%Y-%m-%d %H:%M:%S')"
 timestamp="$(date +'%FT%TZ')"
 
 mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE bandwidth_logs SET bytes_received='$bytes_received',bytes_sent='$bytes_sent',time_out='$dt', status='offline' WHERE username='$common_name' AND status='online'"
-mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE users SET is_connected='0', active_address='', active_date='' WHERE user_name='$common_name' "
+mysql --ssl-verify-server-cert=OFF -u $USER -p$PASS -D $DB -h $HOST -e "UPDATE users SET is_connected='0', device_connected='0', active_address='', active_date='' WHERE user_name='$common_name' "
 LENZ06
 
 sed -i "s|SERVER_IP|$server_ip|g" /etc/openvpn/login/disconnect.sh
@@ -804,7 +804,7 @@ echo '{
   "up_mbps": 100,
   "down_mbps": 100,
   "disable_udp": false,
-  "obfs": "firenet",
+  "obfs": "vollam",
   "auth": {
     "mode": "external",
     "config": {
@@ -817,7 +817,7 @@ echo '{
 }
 ' >> /etc/hysteria/config.json
 
-sed -i "s|firenet|$OBFS|g" /etc/hysteria/config.json
+sed -i "s|vollam|$OBFS|g" /etc/hysteria/config.json
 
 cat <<"EOM" >/etc/hysteria/.auth.sh
 #!/bin/bash
@@ -879,7 +879,7 @@ chmod +x /usr/local/bin/zivpn
 mkdir /etc/zivpn 1> /dev/null 2> /dev/null
 
 echo "Generating cert files:"
-openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=PH/ST=Cebu/L=Central Visayas/O=Vollam Developer/OU=IT Department/CN=firenet" -keyout "/etc/zivpn/zivpn.key" -out "/etc/zivpn/zivpn.crt"
+openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=PH/ST=Cebu/L=Central Visayas/O=Vollam Developer/OU=IT Department/CN=vollam" -keyout "/etc/zivpn/zivpn.key" -out "/etc/zivpn/zivpn.crt"
 sysctl -w net.core.rmem_max=16777216 1> /dev/null 2> /dev/null
 sysctl -w net.core.wmem_max=16777216 1> /dev/null 2> /dev/null
 
@@ -887,7 +887,7 @@ echo '{
   "listen": ":5666",
   "cert": "/etc/zivpn/zivpn.crt",
   "key":  "/etc/zivpn/zivpn.key",
-  "obfs":"firenet",
+  "obfs":"vollam",
   "auth": {
     "mode": "external",
     "config": {
@@ -897,7 +897,7 @@ echo '{
 }
 ' >> /etc/zivpn/config.json
 
-sed -i "s|firenet|$OBFS|g" /etc/zivpn/config.json
+sed -i "s|vollam|$OBFS|g" /etc/zivpn/config.json
 
 cat <<EOF > /etc/systemd/system/hysteria-server.service
 [Unit]
@@ -977,7 +977,7 @@ ExecStart=/bin/bash /etc/rc.local
 RemainAfterExit=yes
 
 [Install]
-WantedBy=multi-user.target" >> /etc/systemd/system/firenet.service
+WantedBy=multi-user.target" >> /etc/systemd/system/vollam.service
 rm -rf /etc/rc.local
     echo '#!/bin/sh -e
 service ufw stop
@@ -1005,8 +1005,8 @@ bash /etc/.monitor openvpn
 exit 0' >> /etc/rc.local
     sudo chmod +x /etc/rc.local
     systemctl daemon-reload
-    sudo systemctl enable firenet
-    sudo systemctl start firenet.service
+    sudo systemctl enable vollam
+    sudo systemctl start vollam.service
     
     mkdir -m 777 /root/.web
 echo "Made with love by: Vollam Developer... " >> /root/.web/index.php
