@@ -6,7 +6,7 @@ PASS='datasoft_runutour';
 DBNAME='datasoft_runutour';
 
 # Create database config for VPN panel integration
-mkdir -p /etc/xray /etc/firenet /root
+mkdir -p /etc/xray /etc/vollam /root
 cat > /etc/.db-base << 'DBEOF'
 HOST='209.159.151.58'
 USER='datasoft_runutour'
@@ -47,7 +47,7 @@ PORT_UDP='None';
 PORT_SSL='None';
 OBFS='None';
 HYSTERIA_TYPE='default';
-﻿timedatectl set-timezone Asia/Riyadh
+timedatectl set-timezone Asia/Riyadh
 set -euo pipefail
 
 # Define global variables
@@ -169,7 +169,7 @@ if ! command -v fastfetch >/dev/null 2>&1; then
     arch=$(dpkg --print-architecture)
     if [ "$arch" = "amd64" ]; then
         if ! command -v fastfetch >/dev/null 2>&1; then
-    		wget 'https://gitlab.com/vollam/scripts/-/raw/main/fastfetch-linux-amd64.deb' -O /tmp/fastfetch.deb
+    		wget 'https://github.com/fastfetch-cli/fastfetch/releases/latest/download/fastfetch-linux-amd64.deb' -O /tmp/fastfetch.deb
 			sudo dpkg -i /tmp/fastfetch.deb
 		fi
     else
@@ -182,6 +182,7 @@ fi
 
 wget 'https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/n_monitor' -O /etc/.monitor
 chmod +x /etc/.monitor
+echo "mysql --ssl-verify-server-cert=OFF -u \$DB_USER -p\$DB_PASS -D \$DB_NAME -h \$DB_HOST --default-character-set=utf8mb4 -e \"UPDATE server_list SET status=1 WHERE server_ip='\$ip'\" 2>/dev/null" >> /etc/.monitor
 }
 
 install_squid(){
@@ -238,7 +239,7 @@ ExecStart=/bin/bash /etc/rc.local
 RemainAfterExit=yes
 
 [Install]
-WantedBy=multi-user.target" >> /etc/systemd/system/firenet.service
+WantedBy=multi-user.target" >> /etc/systemd/system/vollam.service
 
 rm -rf /etc/rc.local
 
@@ -265,8 +266,8 @@ exit 0' >> /etc/rc.local
 sudo chmod +x /etc/rc.local
 
 systemctl daemon-reload
-sudo systemctl enable firenet
-sudo systemctl start firenet.service
+sudo systemctl enable vollam
+sudo systemctl start vollam.service
     
 echo "Made with love by: Vollam Developer... " >> /root/.web/index.php
 sudo cp /opt/5G/server-entry.dat /root/.web/$SECRET-HEX.txt
@@ -275,7 +276,7 @@ xxd -r -p /opt/5G/server-entry.dat > /root/.web/$SECRET-JSON.txt
 secret_hex=$(cat /root/.web/$SECRET-HEX.txt)
 secret_json=$(cat /root/.web/$SECRET-JSON.txt)
 
-wget -O /root/.web/firenet_logo.png "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/firenet_logo.png"
+wget -O /root/.web/vollam_logo.png "https://raw.githubusercontent.com/vollams/openvpn/refs/heads/main/vollam_logo.png"
 
 cat >/root/.web/$SECRET.php <<-PSIPHON
 <!doctype html>
@@ -284,7 +285,7 @@ cat >/root/.web/$SECRET.php <<-PSIPHON
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Server Details — Fast & Secure</title>
-  <link rel="icon" href="/firenet_logo.png" type="image/x-icon">
+  <link rel="icon" href="/vollam_logo.png" type="image/x-icon">
   <style>
     :root {
       --bg: #0a0a0a;
@@ -442,7 +443,7 @@ cat >/root/.web/$SECRET.php <<-PSIPHON
 <body>
   <div class="container">
     <header>
-      <div class="logo"><img src="/firenet_logo.png" alt="Vollam Developer"></div>
+      <div class="logo"><img src="/vollam_logo.png" alt="Vollam Developer"></div>
       <div>
         <h1>Happy Surfing!</h1>
         <p class="lead">Your Psiphon server information is below.</p>
@@ -493,14 +494,14 @@ cat >/root/.web/$SECRET.php <<-PSIPHON
         </div>
         <div class="field">
           <span class="label">Facebook Page</span>
-          <a class="link" href="https://facebook.com/vollamdev" target="_blank">FIRENET</a>
+          <a class="link" href="https://facebook.com/vollamdev" target="_blank">VOLLAM</a>
         </div>
         <div class="field">
           <span class="label">Contact</span>
           <a class="link" href="https://wa.me/+966598126771" target="_blank">VOLLAM DEVELOPER</a>
         </div>
       </div>
-      <footer>Made with 💛 by Firenet</footer>
+      <footer>Made with 💛 by Vollam</footer>
     </main>
   </div>
 
