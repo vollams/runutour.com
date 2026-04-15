@@ -49,8 +49,8 @@ OBFS='vollam';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=5qyt.runutour.info
-NS=4343.runutour.info
+DOMAIN=ece1.runutour.info
+NS=5jfh.runutour.info
 PORT_VLESS='443';
 PORT_NTLS='8082';
 timedatectl set-timezone Asia/Riyadh
@@ -1423,6 +1423,7 @@ plugin-opts:
 <footer>FB: <a class="link" href="https://www.facebook.com/vollams" target="_blank">VOLLAM</a> &nbsp;|&nbsp; WhatsApp: <a class="link" href="https://wa.me/+966598126771" target="_blank">VOLLAM DEVELOPER</a></footer>
 </div><script>function showCopied(){var b=document.createElement('div');b.innerHTML='&#10003; Copied!';b.style.cssText='position:fixed;bottom:28px;right:28px;background:#ff2b2b;color:#fff;padding:10px 22px;border-radius:10px;font-weight:700;font-size:14px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.5)';document.body.appendChild(b);setTimeout(function(){b.style.transition='opacity .4s';b.style.opacity='0';setTimeout(function(){b.remove()},400)},1200)}function copyText(t){try{var ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)}catch(e){}showCopied()}</script></body></html>
 SSEOF
+}
 
 start_service () {
 clear
