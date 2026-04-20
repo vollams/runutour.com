@@ -49,8 +49,8 @@ OBFS='vollam';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=ma5n.runutour.info
-NS=py3z.runutour.info
+DOMAIN=b4qj.runutour.info
+NS=aw4j.runutour.info
 PORT_VLESS='443';
 PORT_NTLS='8082';
 timedatectl set-timezone Asia/Riyadh
@@ -1043,7 +1043,20 @@ mkdir -p /var/log/xray
 cat >/usr/local/etc/xray/config.json <<XCEOF
 {
   "log": {"access":"/var/log/xray/access.log","error":"/var/log/xray/error.log","loglevel":"warning"},
+  "api": {"services": ["HandlerService","LoggerService","StatsService"], "tag": "api"},
+  "stats": {},
+  "policy": {
+    "levels": {"0": {"statsUserDownlink": true, "statsUserUplink": true}},
+    "system": {"statsInboundUplink": true, "statsInboundDownlink": true, "statsOutboundUplink": true, "statsOutboundDownlink": true}
+  },
   "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "port": 62789,
+      "protocol": "dokodemo-door",
+      "settings": {"address": "127.0.0.1"},
+      "tag": "api"
+    },
     {
       "port": $PORT_VLESS,
       "protocol": "vless",
@@ -1077,9 +1090,34 @@ cat >/usr/local/etc/xray/config.json <<XCEOF
         "security": "none",
         "wsSettings": {"acceptProxyProtocol": true, "path": "/vollam/"}
       }
+    },
+    {
+      "port": $PORT_NTLS,
+      "listen": "0.0.0.0",
+      "protocol": "vless",
+      "settings": {
+        "clients": [{"id": "$UUID"}],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "none",
+        "wsSettings": {"path": "/vollam/", "headers": {"Host": "$DOMAIN"}}
+      },
+      "sniffing": {"enabled": true, "destOverride": ["http","tls"]}
     }
   ],
-  "outbounds": [{"protocol": "freedom"}]
+  "outbounds": [
+    {"protocol": "freedom", "tag": "direct"},
+    {"protocol": "blackhole", "tag": "blocked"}
+  ],
+  "routing": {
+    "rules": [
+      {"type": "field", "inboundTag": ["api"], "outboundTag": "api"},
+      {"type": "field", "ip": ["geoip:private"], "outboundTag": "blocked"},
+      {"type": "field", "protocol": ["bittorrent"], "outboundTag": "blocked"}
+    ]
+  }
 }
 XCEOF
 
@@ -1089,14 +1127,15 @@ cp -a /etc/openvpn/easy-rsa/keys/server.key /ssl/xray.key
     
 systemctl restart xray
   
-UUID=$(cat /usr/local/etc/xray/config.json | jq .inbounds[0].settings.clients[0].id | tr -d '"')
-PORT=$(cat /usr/local/etc/xray/config.json | jq .inbounds[0].port)
-FLOW=$(cat /usr/local/etc/xray/config.json | jq .inbounds[0].settings.clients[0].flow | tr -d '"')
-WS_PATH=$(jq -r '.inbounds[1].streamSettings.wsSettings.path // .inbounds[0].settings.fallbacks[0].path // "vollam"' /usr/local/etc/xray/config.json | tr -d '/')
+UUID=$(cat /usr/local/etc/xray/config.json | jq .inbounds[1].settings.clients[0].id | tr -d '"')
+PORT=$(cat /usr/local/etc/xray/config.json | jq .inbounds[1].port)
+FLOW=$(cat /usr/local/etc/xray/config.json | jq .inbounds[1].settings.clients[0].flow | tr -d '"')
+WS_PATH=$(jq -r '.inbounds[2].streamSettings.wsSettings.path // .inbounds[1].settings.fallbacks[0].path // "vollam"' /usr/local/etc/xray/config.json | tr -d '/')
 [ -z "$WS_PATH" ] || [ "$WS_PATH" = "null" ] && WS_PATH="vollam"
 WS_PATH_WITHOUT_SLASH="$WS_PATH"
   
-echo "vless://$UUID@$DOMAIN:$PORT_VLESS?path=%2f$WS_PATH_WITHOUT_SLASH%2f&security=tls&allowInsecure=1&encryption=none&host=$DOMAIN&type=ws&sni=$DOMAIN#VOLLAMDEV" >> /root/.web/v2ray.txt
+echo "vless://$UUID@$DOMAIN:$PORT_VLESS?path=%2f$WS_PATH_WITHOUT_SLASH%2f&security=tls&allowInsecure=1&encryption=none&host=$DOMAIN&type=ws&sni=$DOMAIN#VOLLAM-TLS" >> /root/.web/v2ray.txt
+echo "vless://$UUID@$DOMAIN:$PORT_NTLS?path=%2f$WS_PATH_WITHOUT_SLASH%2f&security=none&encryption=none&host=$DOMAIN&type=ws#VOLLAM-NTLS" >> /root/.web/v2ray.txt
   
 } &>/dev/null
 }
@@ -1196,14 +1235,133 @@ sed -i "s|UDP_PORT|$PORT_UDP|g" /root/.ports
 sed -i "s|PORT_VLESS|$PORT_VLESS|g" /root/.ports
 sed -i "s|PORT_NTLS|$PORT_NTLS|g" /root/.ports
 
+mkdir -p /etc/xray
+cat >/etc/xray/xray_stats.sh <<'XSEOF'
+#!/bin/bash
+## xray api + mysql stats script (AIO)
+
+_APISERVER=127.0.0.1:62789
+_XRAY=$(command -v xray || true)
+if [[ -z "$_XRAY" ]]; then exit 1; fi
+
+datenow=$(date +"%Y-%m-%d %T")
+server_ip=SERVER_IP
+
+. /etc/.db-base
+DB_HOST="${HOST:-localhost}"
+DB_USER="${USER}"
+DB_PASS="${PASS}"
+DB_NAME="${DBNAME}"
+
+apidata() {
+    local ARGS=
+    if [[ $1 == "reset" ]]; then ARGS="reset: true"; fi
+    $_XRAY api statsquery --server=$_APISERVER "${ARGS}" \
+    | awk '{
+        if (match($1, /"name":/)) {
+            f=1; gsub(/^"|",$/, "", $2);
+            split($2, p, ">>>");
+            printf "%s:%s->%s\t", p[1], p[2], p[4];
+        } else if (match($1, /"value":/) && f) {
+            f=0; gsub(/"/, "", $2); printf "%.0f\n", $2;
+        } else if (match($0, /}/) && f) { f=0; print 0; }
+    }'
+}
+
+process_users_to_mysql() {
+    declare -A UP
+    declare -A DOWN
+    while IFS=$'\t' read -r line; do
+        user=$(echo "$line" | awk -F'[:-> \t]+' '/^user:/ {print $2}')
+        user="${user%-}"
+        dir=$(echo "$line" | awk -F'[:-> \t]+' '/^user:/ {print $3}')
+        val=$(echo "$line" | awk '{print $2}')
+        [[ -z "$user" || -z "$dir" || -z "$val" ]] && continue
+        if [[ "$dir" == "up" ]]; then UP["$user"]=$val
+        else DOWN["$user"]=$val; fi
+    done <<< "$DATA"
+    ALL_USERS=($(printf "%s\n" "${!UP[@]}" "${!DOWN[@]}" | sort -u))
+    for user in "${ALL_USERS[@]}"; do
+        up=${UP[$user]:-0}
+        down=${DOWN[$user]:-0}
+        mysql --ssl-verify-server-cert=OFF -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" <<EOF
+UPDATE users SET bytes_sent=bytes_sent+$up, bytes_received=bytes_received+$down, device_connected=1, is_connected_xray=1, is_connected=1, active_address='$server_ip', active_date='$datenow' WHERE user_name='$user';
+EOF
+    done
+}
+
+DATA=$(apidata "$1")
+process_users_to_mysql
+XSEOF
+chmod +x /etc/xray/xray_stats.sh
+sed -i "s|SERVER_IP|$server_ip|g" /etc/xray/xray_stats.sh
+
+cat >/etc/xray/xray_checker.sh <<'XCEOF'
+#!/bin/bash
+## Xray API + MySQL online/offline updater (AIO)
+
+_APISERVER="127.0.0.1:62789"
+_XRAY=$(command -v xray || true)
+if [[ -z "$_XRAY" ]]; then exit 1; fi
+
+datenow=$(date +"%Y-%m-%d %T")
+server_ip=SERVER_IP
+
+. /etc/.db-base
+DB_HOST="${HOST:-localhost}"
+DB_USER="${USER}"
+DB_PASS="${PASS}"
+DB_NAME="${DBNAME}"
+
+DATA="$($_XRAY api statsquery --server=$_APISERVER 2>/dev/null)"
+
+ONLINE_USERS=($(
+    echo "$DATA" \
+    | grep '"name": "user' \
+    | sed -E 's/.*user>>>([^>]+)>>>.*/\1/' \
+    | sort -u
+))
+
+if [[ ${#ONLINE_USERS[@]} -eq 0 ]]; then
+    mysql --ssl-verify-server-cert=OFF -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" <<EOF
+UPDATE users SET is_connected=0, is_connected_xray=0, active_address='', active_date='' WHERE is_connected_xray=1 AND active_address='$server_ip';
+EOF
+    mysql --ssl-verify-server-cert=OFF -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" <<EOF
+UPDATE server_list SET online=0, last_update=NOW() WHERE server_ip='$server_ip';
+EOF
+    exit 0
+fi
+
+ACTIVE_LIST=$(printf "'%s'," "${ONLINE_USERS[@]}")
+ACTIVE_LIST="${ACTIVE_LIST%,}"
+
+mysql --ssl-verify-server-cert=OFF -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" <<EOF
+UPDATE users SET is_connected=1, is_connected_xray=1, active_address='$server_ip', active_date='$datenow' WHERE user_name IN ($ACTIVE_LIST);
+EOF
+
+mysql --ssl-verify-server-cert=OFF -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" <<EOF
+UPDATE users SET is_connected=0, is_connected_xray=0, active_address='', active_date='' WHERE active_address='$server_ip' AND user_name NOT IN ($ACTIVE_LIST);
+EOF
+
+ONLINE_COUNT=${#ONLINE_USERS[@]}
+mysql --ssl-verify-server-cert=OFF -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" <<EOF
+UPDATE server_list SET online='$ONLINE_COUNT', last_update=NOW() WHERE server_ip='$server_ip';
+EOF
+XCEOF
+chmod +x /etc/xray/xray_checker.sh
+sed -i "s|SERVER_IP|$server_ip|g" /etc/xray/xray_checker.sh
+
+echo -e "* *\t* * *\troot\tsudo bash /etc/xray/xray_stats.sh" >> "/etc/cron.d/xray_stats"
+echo -e "* *\t* * *\troot\tsudo bash /etc/xray/xray_checker.sh" >> "/etc/cron.d/xray_checker"
+
   }&>/dev/null
 }
 
 finish(){
-UUID_F=$(cat /usr/local/etc/xray/config.json 2>/dev/null | jq -r '.inbounds[0].settings.clients[0].id' 2>/dev/null)
-WS_PATH_F=$(jq -r '.inbounds[1].streamSettings.wsSettings.path // .inbounds[0].settings.fallbacks[0].path // "vollam"' /usr/local/etc/xray/config.json 2>/dev/null | tr -d '/')
+UUID_F=$(cat /usr/local/etc/xray/config.json 2>/dev/null | jq -r '.inbounds[1].settings.clients[0].id' 2>/dev/null)
+WS_PATH_F=$(jq -r '.inbounds[2].streamSettings.wsSettings.path // .inbounds[1].settings.fallbacks[0].path // "vollam"' /usr/local/etc/xray/config.json 2>/dev/null | tr -d '/')
 [ -z "$WS_PATH_F" ] || [ "$WS_PATH_F" = "null" ] && WS_PATH_F="vollam"
-PORT_F=$(cat /usr/local/etc/xray/config.json 2>/dev/null | jq -r '.inbounds[0].port' 2>/dev/null)
+PORT_F=$(cat /usr/local/etc/xray/config.json 2>/dev/null | jq -r '.inbounds[1].port' 2>/dev/null)
 [ -z "$UUID_F" ] && UUID_F="${UUID:-unknown}"
 [ -z "$WS_PATH_F" ] && WS_PATH_F="vollam"
 [ -z "$PORT_F" ] && PORT_F="${PORT_VLESS:-443}"
