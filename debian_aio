@@ -49,8 +49,8 @@ OBFS='vollam';
 HYSTERIA_TYPE='default';
 API_LINK='https://runutour.com/api/authentication';
 API_KEY='fZPG';
-DOMAIN=eh6c.runutour.info
-NS=qu5n.runutour.info
+DOMAIN=phcv.runutour.info
+NS=0lfy.runutour.info
 PORT_VLESS='443';
 PORT_NTLS='8082';
 timedatectl set-timezone Asia/Riyadh
@@ -737,6 +737,9 @@ sleep 15
 bash /home/inactive.sh
 sleep 15
 bash /home/deleted.sh
+
+# Regenerate xray config.json with per-user email fields (required for per-user stats)
+bash /etc/xray/xray_config_regen.sh 2>/dev/null || true
 EOF
 
 echo -e "* *\t* * *\troot\tsudo bash /home/authentication.sh" >> "/etc/cron.d/account"
@@ -1238,121 +1241,185 @@ sed -i "s|PORT_NTLS|$PORT_NTLS|g" /root/.ports
 mkdir -p /etc/xray
 cat >/etc/xray/xray_stats.sh <<'XSEOF'
 #!/bin/bash
-## xray api + mysql stats script (AIO)
-
-_APISERVER=127.0.0.1:62789
-_XRAY=$(command -v xray || true)
-if [[ -z "$_XRAY" ]]; then exit 1; fi
-
-datenow=$(date +"%Y-%m-%d %T")
-server_ip=SERVER_IP
-
-. /etc/.db-base
-DB_HOST="${HOST:-localhost}"
-DB_USER="${USER}"
-DB_PASS="${PASS}"
-DB_NAME="${DBNAME}"
-
-apidata() {
-    local ARGS=
-    if [[ $1 == "reset" ]]; then ARGS="reset: true"; fi
-    $_XRAY api statsquery --server=$_APISERVER "${ARGS}" \
-    | awk '{
-        if (match($1, /"name":/)) {
-            f=1; gsub(/^"|",$/, "", $2);
-            split($2, p, ">>>");
-            printf "%s:%s->%s\t", p[1], p[2], p[4];
-        } else if (match($1, /"value":/) && f) {
-            f=0; gsub(/"/, "", $2); printf "%.0f\n", $2;
-        } else if (match($0, /}/) && f) { f=0; print 0; }
-    }'
-}
-
-process_users_to_mysql() {
-    declare -A UP
-    declare -A DOWN
-    while IFS=$'\t' read -r line; do
-        user=$(echo "$line" | awk -F'[:-> \t]+' '/^user:/ {print $2}')
-        user="${user%-}"
-        dir=$(echo "$line" | awk -F'[:-> \t]+' '/^user:/ {print $3}')
-        val=$(echo "$line" | awk '{print $2}')
-        [[ -z "$user" || -z "$dir" || -z "$val" ]] && continue
-        if [[ "$dir" == "up" ]]; then UP["$user"]=$val
-        else DOWN["$user"]=$val; fi
-    done <<< "$DATA"
-    ALL_USERS=($(printf "%s\n" "${!UP[@]}" "${!DOWN[@]}" | sort -u))
-    for user in "${ALL_USERS[@]}"; do
-        up=${UP[$user]:-0}
-        down=${DOWN[$user]:-0}
-        mysql --ssl-verify-server-cert=OFF -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" <<EOF
-UPDATE users SET bytes_sent=bytes_sent+$up, bytes_received=bytes_received+$down, device_connected=1, is_connected_xray=1, is_connected=1, active_address='$server_ip', active_date='$datenow' WHERE user_name='$user';
-EOF
-    done
-}
-
-DATA=$(apidata "$1")
-process_users_to_mysql
+## xray_stats.sh — shared UUID mode: BW handled by xray_monitor.sh
+## This script is a no-op placeholder; monitor handles all BW flushing
+exit 0
 XSEOF
 chmod +x /etc/xray/xray_stats.sh
-sed -i "s|SERVER_IP|$server_ip|g" /etc/xray/xray_stats.sh
 
 cat >/etc/xray/xray_checker.sh <<'XCEOF'
 #!/bin/bash
-## Xray API + MySQL online/offline updater (AIO)
-
-_APISERVER="127.0.0.1:62789"
-_XRAY=$(command -v xray || true)
-if [[ -z "$_XRAY" ]]; then exit 1; fi
-
-datenow=$(date +"%Y-%m-%d %T")
-server_ip=SERVER_IP
-
-. /etc/.db-base
-DB_HOST="${HOST:-localhost}"
-DB_USER="${USER}"
-DB_PASS="${PASS}"
-DB_NAME="${DBNAME}"
-
-DATA="$($_XRAY api statsquery --server=$_APISERVER 2>/dev/null)"
-
-ONLINE_USERS=($(
-    echo "$DATA" \
-    | grep '"name": "user' \
-    | sed -E 's/.*user>>>([^>]+)>>>.*/\1/' \
-    | sort -u
-))
-
-if [[ ${#ONLINE_USERS[@]} -eq 0 ]]; then
-    mysql --ssl-verify-server-cert=OFF -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" <<EOF
-UPDATE users SET is_connected=0, is_connected_xray=0, active_address='', active_date='' WHERE is_connected_xray=1 AND active_address='$server_ip';
-EOF
-    mysql --ssl-verify-server-cert=OFF -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" <<EOF
-UPDATE server_list SET online=0, last_update=NOW() WHERE server_ip='$server_ip';
-EOF
-    exit 0
-fi
-
-ACTIVE_LIST=$(printf "'%s'," "${ONLINE_USERS[@]}")
-ACTIVE_LIST="${ACTIVE_LIST%,}"
-
-mysql --ssl-verify-server-cert=OFF -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" <<EOF
-UPDATE users SET is_connected=1, is_connected_xray=1, active_address='$server_ip', active_date='$datenow' WHERE user_name IN ($ACTIVE_LIST);
-EOF
-
-mysql --ssl-verify-server-cert=OFF -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" <<EOF
-UPDATE users SET is_connected=0, is_connected_xray=0, active_address='', active_date='' WHERE active_address='$server_ip' AND user_name NOT IN ($ACTIVE_LIST);
-EOF
-
-ONLINE_COUNT=${#ONLINE_USERS[@]}
-mysql --ssl-verify-server-cert=OFF -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" <<EOF
-UPDATE server_list SET online='$ONLINE_COUNT', last_update=NOW() WHERE server_ip='$server_ip';
-EOF
+## xray_checker.sh — syncs server_list.online count only
+## Offline detection handled by xray_monitor.sh (systemd service)
+source /etc/.db-base 2>/dev/null || source /etc/xray/.db-base 2>/dev/null || exit 1
+DB_HOST="${HOST}"; DB_USER="${USER}"; DB_PASS="${PASS}"; DB_NAME="${DBNAME:-$DB}"
+server_ip=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')
+CNT=$(mysql --ssl-verify-server-cert=OFF -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" \
+    -sN -e "SELECT COUNT(*) FROM users WHERE is_connected_xray=1 AND active_address!='' AND active_address!='$server_ip';" 2>/dev/null || echo 0)
+mysql --ssl-verify-server-cert=OFF -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -e \
+"UPDATE server_list SET online='${CNT:-0}', status='1' WHERE server_ip='$server_ip';" 2>/dev/null
 XCEOF
 chmod +x /etc/xray/xray_checker.sh
-sed -i "s|SERVER_IP|$server_ip|g" /etc/xray/xray_checker.sh
 
-echo -e "* *\t* * *\troot\tsudo bash /etc/xray/xray_stats.sh" >> "/etc/cron.d/xray_stats"
-echo -e "* *\t* * *\troot\tsudo bash /etc/xray/xray_checker.sh" >> "/etc/cron.d/xray_checker"
+cat >/etc/xray/xray_monitor.sh <<'XMEOF'
+#!/bin/bash
+## xray_monitor.sh — real-time Xray connection monitor
+## Online: instant on 'accepted' log line | Offline: log idle >=60s
+## IPv6 users managed by auth.php — monitor only tracks IPv4 Xray connections
+_APISERVER="127.0.0.1:62789"
+_XRAY=$(command -v xray || true)
+[[ -z "$_XRAY" ]] && exit 1
+source /etc/.db-base 2>/dev/null || source /etc/xray/.db-base 2>/dev/null || exit 1
+DB_HOST="${HOST}"; DB_USER="${USER}"; DB_PASS="${PASS}"; DB_NAME="${DBNAME:-$DB}"
+server_ip=$(curl -s --max-time 5 https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')
+XRAY_LOG="/var/log/xray/access.log"
+STATE_FILE="/etc/xray/.monitor_state"
+LAST_SEEN_FILE="/etc/xray/.ip_last_seen"
+touch "$STATE_FILE" "$LAST_SEEN_FILE"
+db_q()  { mysql --ssl-verify-server-cert=OFF -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "$1" 2>/dev/null; }
+db_sN() { mysql --ssl-verify-server-cert=OFF -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -sN -e "$1" 2>/dev/null; }
+update_count() {
+    local cnt=$(db_sN "SELECT COUNT(*) FROM users WHERE is_connected_xray=1 AND active_address!='' AND active_address!='$server_ip';")
+    db_q "UPDATE server_list SET online='${cnt:-0}', status='1' WHERE server_ip='$server_ip';"
+}
+mark_online() {
+    local user="$1" ip="$2" now=$(date +"%Y-%m-%d %T")
+    db_q "UPDATE users SET is_connected=1,is_connected_xray=1,active_address='$ip',active_date='$now' WHERE user_name='$user';"
+    db_q "UPDATE users SET is_connected=0,is_connected_xray=0,active_address='' WHERE active_address='$ip' AND user_name!='$user';"
+    sed -i "/|${user}$/d; /^${ip}|/d" "$STATE_FILE" 2>/dev/null
+    echo "${ip}|${user}" >> "$STATE_FILE"
+    sed -i "/^${ip} /d" "$LAST_SEEN_FILE" 2>/dev/null
+    echo "${ip} $(date +%s)" >> "$LAST_SEEN_FILE"
+    update_count
+    echo "[monitor] ONLINE: $user from $ip"
+}
+get_stats() {
+    local raw=$($_XRAY api statsquery --server=$_APISERVER 2>/dev/null)
+    local up=$(echo "$raw" | awk '/"name":.*user.*shared.*uplink/{f=1} f && /"value":/{gsub(/[^0-9]/,"",$0); if($0+0>0){print $0+0}; f=0}' | awk '{s+=$1} END{printf "%.0f",s+0}')
+    local dn=$(echo "$raw" | awk '/"name":.*user.*shared.*downlink/{f=1} f && /"value":/{gsub(/[^0-9]/,"",$0); if($0+0>0){print $0+0}; f=0}' | awk '{s+=$1} END{printf "%.0f",s+0}')
+    echo "${up:-0} ${dn:-0}"
+}
+offline_watcher() {
+    ALL_ONLINE=$(db_sN "SELECT user_name FROM users WHERE is_connected_xray=1 AND active_address REGEXP '^[0-9]{1,3}[.][0-9]{1,3}[.][0-9]{1,3}[.][0-9]{1,3}$';")
+    while IFS= read -r db_user; do
+        [[ -z "$db_user" ]] && continue
+        grep -q "|${db_user}$" "$STATE_FILE" 2>/dev/null && continue
+        db_q "UPDATE users SET is_connected=0,is_connected_xray=0,active_address='' WHERE user_name='$db_user';"
+    done <<< "$ALL_ONLINE"
+    update_count
+    read PREV_UP PREV_DN <<< $(get_stats)
+    local DB_UP_BASE=$PREV_UP; local DB_DN_BASE=$PREV_DN; local LAST_BW_FLUSH=$(date +%s)
+    echo "[offline_watcher] started seed UP=$PREV_UP DN=$PREV_DN"
+    while true; do
+        sleep 20; NOW_TS=$(date +%s)
+        STALE_SRVIP=$(db_sN "SELECT user_name FROM users WHERE is_connected_xray=1 AND active_address='$server_ip';")
+        while IFS= read -r stale_user; do
+            [[ -z "$stale_user" ]] && continue
+            db_q "UPDATE users SET is_connected=0,is_connected_xray=0,active_address='' WHERE user_name='$stale_user';"
+            update_count
+        done <<< "$STALE_SRVIP"
+        if [[ ! -s "$STATE_FILE" ]]; then
+            read PREV_UP PREV_DN <<< $(get_stats); DB_UP_BASE=$PREV_UP; DB_DN_BASE=$PREV_DN; continue
+        fi
+        ONLINE_DB=$(db_sN "SELECT user_name FROM users WHERE is_connected_xray=1 AND active_address REGEXP '^[0-9]{1,3}[.][0-9]{1,3}[.][0-9]{1,3}[.][0-9]{1,3}$' AND active_address NOT IN ('','$server_ip');")
+        if [[ -z "$ONLINE_DB" ]]; then
+            > "$STATE_FILE"; read PREV_UP PREV_DN <<< $(get_stats); DB_UP_BASE=$PREV_UP; DB_DN_BASE=$PREV_DN; continue
+        fi
+        read CUR_UP CUR_DN <<< $(get_stats)
+        DELTA=$(( (CUR_UP + CUR_DN) - (PREV_UP + PREV_DN) ))
+        echo "[offline_watcher] delta=$DELTA users=$(echo "$ONLINE_DB" | tr '\n' ',')"
+        ALL_CONNECTED=$(db_sN "SELECT user_name FROM users WHERE is_connected_xray=1 AND active_address!='' AND active_address!='$server_ip';")
+        if [[ $(( NOW_TS - LAST_BW_FLUSH )) -ge 60 ]]; then
+            ADD_UP=$(( CUR_UP - DB_UP_BASE )); ADD_DN=$(( CUR_DN - DB_DN_BASE ))
+            if [[ "$ADD_UP" -gt 0 || "$ADD_DN" -gt 0 ]]; then
+                while IFS= read -r user; do
+                    [[ -z "$user" ]] && continue
+                    db_q "UPDATE users SET bytes_sent=bytes_sent+${ADD_UP}, bytes_received=bytes_received+${ADD_DN} WHERE user_name='$user';"
+                done <<< "$ALL_CONNECTED"
+                echo "[offline_watcher] bw flush UP=$ADD_UP DN=$ADD_DN"
+                DB_UP_BASE=$CUR_UP; DB_DN_BASE=$CUR_DN
+            fi
+            LAST_BW_FLUSH=$NOW_TS
+        fi
+        while IFS= read -r db_user; do
+            [[ -z "$db_user" ]] && continue
+            grep -q "|${db_user}$" "$STATE_FILE" 2>/dev/null && continue
+            db_q "UPDATE users SET is_connected=0,is_connected_xray=0,active_address='' WHERE user_name='$db_user';"
+            update_count
+        done <<< "$ONLINE_DB"
+        while IFS='|' read -r tip tuser; do
+            [[ -z "$tip" || -z "$tuser" ]] && continue
+            LAST_SEEN=$(grep "^${tip} " "$LAST_SEEN_FILE" 2>/dev/null | awk '{print $2}')
+            [[ -z "$LAST_SEEN" ]] && LAST_SEEN=$NOW_TS
+            IDLE=$(( NOW_TS - LAST_SEEN ))
+            echo "[offline_watcher] $tuser ($tip) log_idle=${IDLE}s"
+            if [[ "$IDLE" -ge 60 ]]; then
+                ADD_UP=$(( CUR_UP - DB_UP_BASE )); ADD_DN=$(( CUR_DN - DB_DN_BASE ))
+                [[ "$ADD_UP" -gt 0 || "$ADD_DN" -gt 0 ]] && \
+                    db_q "UPDATE users SET bytes_sent=bytes_sent+${ADD_UP}, bytes_received=bytes_received+${ADD_DN} WHERE user_name='$tuser';"
+                db_q "UPDATE users SET is_connected=0,is_connected_xray=0,active_address='' WHERE user_name='$tuser';"
+                sed -i "/|${tuser}$/d" "$STATE_FILE" 2>/dev/null
+                sed -i "/^${tip} /d" "$LAST_SEEN_FILE" 2>/dev/null
+                DB_UP_BASE=$CUR_UP; DB_DN_BASE=$CUR_DN
+                echo "[offline_watcher] $tuser -> OFFLINE (log_idle=${IDLE}s)"
+                update_count
+            fi
+        done < <(cat "$STATE_FILE")
+        PREV_UP=$CUR_UP; PREV_DN=$CUR_DN
+    done
+}
+offline_watcher &
+WATCHER_PID=$!
+trap "kill $WATCHER_PID 2>/dev/null; exit" EXIT INT TERM
+echo "[monitor] Starting. SERVER_IP=$server_ip watcher=$WATCHER_PID"
+tail -F "$XRAY_LOG" 2>/dev/null | while IFS= read -r line; do
+    [[ "$line" != *" accepted "* ]] && continue
+    [[ "$line" != *"email: shared"* ]] && continue
+    CLIENT_IP=$(echo "$line" | grep -oP 'from \K[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+    [[ -z "$CLIENT_IP" ]] && continue
+    [[ "$CLIENT_IP" =~ ^(127\.|188\.114\.) ]] && continue
+    sed -i "/^${CLIENT_IP} /d" "$LAST_SEEN_FILE" 2>/dev/null
+    echo "${CLIENT_IP} $(date +%s)" >> "$LAST_SEEN_FILE"
+    EXISTING=$(grep "^${CLIENT_IP}|" "$STATE_FILE" 2>/dev/null | cut -d'|' -f2 | head -1)
+    if [[ -n "$EXISTING" ]]; then
+        AUTH_USER=$(db_sN "SELECT user_name FROM users WHERE active_address='$CLIENT_IP' AND duration>0 AND is_freeze=0 AND user_name REGEXP '^[a-zA-Z]' AND user_name!='$EXISTING' ORDER BY active_date DESC LIMIT 1;")
+        if [[ -n "$AUTH_USER" ]]; then
+            db_q "UPDATE users SET is_connected=0,is_connected_xray=0,active_address='' WHERE user_name='$EXISTING';"
+            sed -i "/|${EXISTING}$/d; /^${CLIENT_IP}|/d" "$STATE_FILE" 2>/dev/null
+            mark_online "$AUTH_USER" "$CLIENT_IP"; continue
+        fi
+        STILL_ON=$(db_sN "SELECT COUNT(*) FROM users WHERE user_name='$EXISTING' AND is_connected_xray=1;")
+        if [[ "${STILL_ON:-0}" -gt 0 ]]; then
+            db_q "UPDATE users SET active_date='$(date +"%Y-%m-%d %T")' WHERE user_name='$EXISTING' AND is_connected_xray=1;"; continue
+        fi
+        sed -i "/^${CLIENT_IP}|/d" "$STATE_FILE" 2>/dev/null
+        sed -i "/^${CLIENT_IP} /d" "$LAST_SEEN_FILE" 2>/dev/null
+    fi
+    NEW_USER=$(db_sN "SELECT user_name FROM users WHERE active_address='$CLIENT_IP' AND duration>0 AND is_freeze=0 AND user_name REGEXP '^[a-zA-Z]' ORDER BY active_date DESC LIMIT 1;")
+    [[ -z "$NEW_USER" ]] && NEW_USER=$(db_sN "SELECT user_name FROM users WHERE is_connected_xray=0 AND active_address='' AND user_level NOT IN ('superadmin','developer','reseller') AND duration>0 AND is_freeze=0 AND user_name REGEXP '^[a-zA-Z]' ORDER BY active_date DESC LIMIT 1;")
+    [[ -z "$NEW_USER" ]] && continue
+    mark_online "$NEW_USER" "$CLIENT_IP"
+done
+XMEOF
+chmod +x /etc/xray/xray_monitor.sh
+
+cat > /etc/systemd/system/xray-monitor.service <<'SVCEOF'
+[Unit]
+Description=Xray realtime connection monitor
+After=network.target xray.service
+[Service]
+Type=simple
+Restart=always
+RestartSec=3
+ExecStart=/bin/bash /etc/xray/xray_monitor.sh
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+systemctl daemon-reload
+systemctl enable xray-monitor >/dev/null 2>&1
+systemctl restart xray-monitor
+
+echo -e "* *\t* * *\troot\tsudo bash /etc/xray/xray_checker.sh\n* *\t* * *\troot\tsleep 30 && sudo bash /etc/xray/xray_checker.sh" > "/etc/cron.d/xray_checker"
 
   }&>/dev/null
 }
